@@ -1,0 +1,58 @@
+# --- System / OS ---
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# --- Node / pnpm ---
+node_modules/
+.pnpm-store/
+pnpm-debug.log*
+.npm/
+.eslintcache
+.stylelintcache
+
+# --- Smart Contracts (Foundry) ---
+packages/contracts/out/
+packages/contracts/cache/
+packages/contracts/lib/
+packages/contracts/broadcast/
+# If you use Slither or other security tools
+packages/contracts/slither-out/
+packages/contracts/crytic-export/
+
+# --- Frontend (Vite + React) ---
+apps/web/dist/
+apps/web/dist-ssr/
+apps/web/.vite/
+# Vite timestamp artifacts
+vite.config.ts.timestamp-*
+
+# --- Backend (Express + MongoDB) ---
+apps/api/dist/
+# If running MongoDB locally in a folder
+apps/api/data/
+apps/api/db/
+*.log
+
+# --- Shared Package ---
+# Ignore the built files, but keep the source
+packages/shared/dist/
+# If your sync-abis.js generates files in src/abis
+# You might want to COMMIT these so other devs have them immediately, 
+# or IGNORE them and force a build. Recommendation: COMMIT them.
+# !packages/shared/src/abis/
+
+# --- Environment & Secrets (CRITICAL) ---
+.env
+.env.*
+!.env.example
+# Foundry secrets
+.password
+.secret
+
+# --- IDEs ---
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
