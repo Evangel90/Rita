@@ -1,6 +1,7 @@
 import { createAppKit } from '@reown/appkit/react'
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
-import { sepolia } from '@reown/appkit/networks'
+import { liskSepolia, sepolia } from '@reown/appkit/networks'
+import type { AppKitNetwork } from '@reown/appkit/networks'
 
 const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID
 
@@ -11,7 +12,7 @@ const metadata = {
   icons: ['https://avatars.githubusercontent.com/u/37784886'],
 }
 
-const networks = [sepolia]
+const networks: [AppKitNetwork, ...AppKitNetwork[]] = [liskSepolia, sepolia]
 
 export const wagmiAdapter = new WagmiAdapter({
   projectId: projectId || 'MISSING_PROJECT_ID',

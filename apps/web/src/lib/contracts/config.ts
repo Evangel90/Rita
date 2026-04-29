@@ -1,6 +1,6 @@
 import { getAddress } from 'viem'
 
-export const CHAIN_ID = 11155111
+export const CHAIN_ID = 4202
 
 export const CONTRACTS = {
   ritaDelegate: getAddress('0xFD055766aF5DC43eAC17a0fBf8A5f520dBE49316'),

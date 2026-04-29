@@ -1,6 +1,27 @@
-import { Link } from '@tanstack/react-router'
+import { useNavigate } from '@tanstack/react-router'
+import { useAppKit } from '@reown/appkit/react'
+import { useAccount } from 'wagmi'
+import { useEffect } from 'react'
 
 export function LandingPage() {
+  const { open } = useAppKit()
+  const { isConnected } = useAccount()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (isConnected) {
+      navigate({ to: '/onboarding/upgrade' })
+    }
+  }, [isConnected, navigate])
+
+  const handleConnect = () => {
+    if (isConnected) {
+      navigate({ to: '/onboarding/upgrade' })
+    } else {
+      open({ view: 'Connect' })
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#F9FBF2] text-[#1a1c1f]">
       <nav className="fixed top-0 z-50 w-full border-b border-[#E8F5BD] bg-[#F9FBF2]/95 backdrop-blur">
@@ -17,12 +38,12 @@ export function LandingPage() {
               Docs
             </a>
           </div>
-          <Link
-            to="/onboarding/connect"
-            className="rounded-lg bg-[#5B7E3C] px-5 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95"
+          <button
+            onClick={handleConnect}
+            className="rounded-lg bg-[#5B7E3C] px-5 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95 cursor-pointer"
           >
-            Launch App
-          </Link>
+            {isConnected ? 'Go to App' : 'Connect'}
+          </button>
         </div>
       </nav>
 
@@ -48,12 +69,12 @@ export function LandingPage() {
               or liquidity.
             </p>
             <div className="flex flex-col items-center gap-4 sm:flex-row">
-              <Link
-                to="/onboarding/connect"
-                className="w-full rounded-lg bg-[#5B7E3C] px-8 py-4 text-center text-lg font-semibold text-white shadow-lg shadow-[#5B7E3C]/10 transition-all hover:opacity-90 active:scale-95 sm:w-auto"
+              <button
+                onClick={handleConnect}
+                className="w-full rounded-lg bg-[#5B7E3C] px-8 py-4 text-center text-lg font-semibold text-white shadow-lg shadow-[#5B7E3C]/10 transition-all hover:opacity-90 active:scale-95 sm:w-auto cursor-pointer"
               >
-                Upgrade my wallet
-              </Link>
+                {isConnected ? 'Launch App' : 'Connect Wallet'}
+              </button>
               <a className="font-semibold text-[#5B7E3C] transition-colors hover:text-[#436526]" href="#how-it-works">
                 How it works →
               </a>

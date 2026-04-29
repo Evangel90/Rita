@@ -15,8 +15,6 @@ import { wagmiAdapter } from './lib/web3/appkit'
 import { DashboardPage } from './pages/DashboardPage'
 import { LandingPage } from './pages/LandingPage'
 import { MyWillPage } from './pages/MyWillPage'
-import { OnboardingConnectPage } from './pages/OnboardingConnectPage'
-import { OnboardingInstallPage } from './pages/OnboardingInstallPage'
 import { OnboardingUpgradePage } from './pages/OnboardingUpgradePage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 
@@ -38,22 +36,10 @@ const landingRoute = createRoute({
   component: LandingPage,
 })
 
-const onboardingConnectRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/onboarding/connect',
-  component: OnboardingConnectPage,
-})
-
 const onboardingUpgradeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/onboarding/upgrade',
   component: OnboardingUpgradePage,
-})
-
-const onboardingInstallRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/onboarding/install',
-  component: OnboardingInstallPage,
 })
 
 const dashboardRoute = createRoute({
@@ -105,9 +91,7 @@ const notFoundRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   landingRoute,
-  onboardingConnectRoute,
   onboardingUpgradeRoute,
-  onboardingInstallRoute,
   dashboardRoute,
   myWillRoute,
   guardiansRoute,
