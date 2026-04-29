@@ -34,6 +34,22 @@ export function DashboardPage() {
             <h3 className="mb-4 text-xl font-semibold">Asset Summary</h3>
             <p className="text-sm">Delegate ETH: {Number(data.delegateEthBalance).toFixed(4)} ETH</p>
             <p className="text-sm">Tracked tokens: {data.supportedTokens.length}</p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {data.supportedTokens.slice(0, 3).map((token) => (
+                <button
+                  key={token}
+                  className="rounded border border-stone-300 px-3 py-1 text-xs"
+                  onClick={() => actions.claimToken(token)}
+                >
+                  Claim {token.slice(0, 6)}...
+                </button>
+              ))}
+              {data.supportedTokens.length > 1 ? (
+                <button className="rounded border border-stone-300 px-3 py-1 text-xs" onClick={() => actions.claimMultiple(data.supportedTokens)}>
+                  Claim all tracked tokens
+                </button>
+              ) : null}
+            </div>
           </div>
           <div className="rounded-xl border border-[#E8F5BD] bg-white p-6 md:col-span-12">
             <h3 className="mb-4 text-xl font-semibold">Protocol Event Timeline</h3>

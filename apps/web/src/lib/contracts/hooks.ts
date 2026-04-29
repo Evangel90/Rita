@@ -124,5 +124,12 @@ export function useRitaActions() {
         functionName: 'registerHeir',
         args: [heir],
       }),
+    deregisterHeir: (heir: `0x${string}`) =>
+      writeContractAsync({
+        abi: ritaRegistryAbi,
+        address: CONTRACTS.ritaRegistry,
+        functionName: 'deregisterHeir',
+        args: [heir],
+      }),
   }
 }

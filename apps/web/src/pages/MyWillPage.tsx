@@ -10,6 +10,18 @@ export function MyWillPage() {
   const [heir, setHeir] = useState('')
   const [token, setToken] = useState('')
 
+  const onAddHeir = async () => {
+    if (!isAddress(heir)) return
+    await actions.addHeir(heir as `0x${string}`)
+    await actions.registerHeir(heir as `0x${string}`)
+  }
+
+  const onRemoveHeir = async () => {
+    if (!isAddress(heir)) return
+    await actions.removeHeir(heir as `0x${string}`)
+    await actions.deregisterHeir(heir as `0x${string}`)
+  }
+
   return (
     <AppShell>
       <div className="mx-auto grid max-w-[1200px] grid-cols-1 gap-6 p-6 lg:grid-cols-12">
@@ -39,10 +51,10 @@ export function MyWillPage() {
               className="w-full rounded-lg border border-stone-300 p-3 font-mono"
             />
             <div className="mt-4 flex gap-3">
-              <button className="rounded-lg bg-[#5B7E3C] px-4 py-2 text-white" disabled={!isAddress(heir)} onClick={() => actions.addHeir(heir as `0x${string}`)}>
+              <button className="rounded-lg bg-[#5B7E3C] px-4 py-2 text-white" disabled={!isAddress(heir)} onClick={onAddHeir}>
                 Add heir
               </button>
-              <button className="rounded-lg border border-stone-300 px-4 py-2" disabled={!isAddress(heir)} onClick={() => actions.removeHeir(heir as `0x${string}`)}>
+              <button className="rounded-lg border border-stone-300 px-4 py-2" disabled={!isAddress(heir)} onClick={onRemoveHeir}>
                 Remove heir
               </button>
             </div>
