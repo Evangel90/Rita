@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@reown/appkit": "latest",
+    "@reown/appkit-adapter-wagmi": "latest",
     "@tanstack/react-query": "^5.100.3",
     "@tanstack/react-router": "^1.168.24",
     "lucide-react": "^1.11.0",

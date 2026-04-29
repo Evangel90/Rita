@@ -11,7 +11,7 @@ import {
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { WagmiProvider } from 'wagmi'
 import './index.css'
-import { wagmiConfig } from './lib/web3/wagmi'
+import { wagmiAdapter } from './lib/web3/appkit'
 import { DashboardPage } from './pages/DashboardPage'
 import { LandingPage } from './pages/LandingPage'
 import { MyWillPage } from './pages/MyWillPage'
@@ -24,7 +24,7 @@ const queryClient = new QueryClient()
 
 const rootRoute = createRootRoute({
   component: () => (
-    <WagmiProvider config={wagmiConfig}>
+    <WagmiProvider config={wagmiAdapter.wagmiConfig}>
       <QueryClientProvider client={queryClient}>
         <Outlet />
       </QueryClientProvider>
