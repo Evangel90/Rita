@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@reown/appkit": "latest",
+    "@reown/appkit-adapter-wagmi": "latest",
     "@tanstack/react-query": "^5.100.3",
     "@tanstack/react-router": "^1.168.24",
     "lucide-react": "^1.11.0",
@@ -21,6 +23,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.2.4",
+    "@tanstack/router-devtools": "^1.166.13",
     "@tanstack/router-plugin": "^1.167.26",
     "@types/node": "^24.12.2",
     "@types/react": "^19.2.14",
