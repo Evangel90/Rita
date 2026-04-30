@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { formatEther } from 'viem'
-import { useAccount, useBalance, useReadContract, useReadContracts, useWriteContract } from 'wagmi'
+import { useAccount, useBalance, useReadContracts, useWriteContract } from 'wagmi'
 import { ritaDelegateAbi, ritaRegistryAbi } from './abi'
 import { CONTRACTS } from './config'
 
