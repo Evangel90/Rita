@@ -39,13 +39,13 @@ export function DashboardPage() {
                 <button
                   key={token}
                   className="rounded border border-stone-300 px-3 py-1 text-xs"
-                  onClick={() => actions.claimToken(token)}
+                  onClick={() => actions.claimToken()}
                 >
                   Claim {token.slice(0, 6)}...
                 </button>
               ))}
               {data.supportedTokens.length > 1 ? (
-                <button className="rounded border border-stone-300 px-3 py-1 text-xs" onClick={() => actions.claimMultiple(data.supportedTokens)}>
+                <button className="rounded border border-stone-300 px-3 py-1 text-xs" onClick={() => actions.claimMultiple()}>
                   Claim all tracked tokens
                 </button>
               ) : null}

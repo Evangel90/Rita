@@ -1,6 +1,6 @@
 import type { PropsWithChildren } from 'react'
 import { Link, useLocation } from '@tanstack/react-router'
-import { useAccount, useConnect, useDisconnect } from 'wagmi'
+import { usePrivy, useWallets, getEmbeddedConnectedWallet } from '@privy-io/react-auth'
 
 const navItems = [
   { to: '/app/dashboard', label: 'Dashboard' },
@@ -13,9 +13,12 @@ const navItems = [
 
 export function AppShell({ children }: PropsWithChildren) {
   const location = useLocation()
-  const { address, isConnected } = useAccount()
-  const { disconnect } = useDisconnect()
-  const { connect, connectors } = useConnect()
+  const { user, login, logout } = usePrivy()
+  const { wallets } = useWallets()
+  const wallet = getEmbeddedConnectedWallet(wallets)
+
+  const address = wallet?.address
+  const isConnected = !!user
 
   return (
     <div className="min-h-screen bg-[#F9FBF2]">
@@ -42,13 +45,13 @@ export function AppShell({ children }: PropsWithChildren) {
         </nav>
         <div className="px-4">
           {isConnected ? (
-            <button className="w-full rounded-lg bg-stone-800 px-4 py-3 text-sm text-white" onClick={() => disconnect()}>
+            <button className="w-full rounded-lg bg-stone-800 px-4 py-3 text-sm text-white" onClick={() => logout()}>
               Disconnect
             </button>
           ) : (
             <button
               className="w-full rounded-lg bg-stone-800 px-4 py-3 text-sm text-white"
-              onClick={() => connect({ connector: connectors[0] })}
+              onClick={() => login()}
             >
               Connect Wallet
             </button>

@@ -9,9 +9,9 @@ import {
   createRouter,
 } from '@tanstack/react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { WagmiProvider } from 'wagmi'
+import { PrivyProvider } from '@privy-io/react-auth'
 import './index.css'
-import { wagmiAdapter } from './lib/web3/appkit'
+import { privyConfig } from './lib/web3/privy'
 import { DashboardPage } from './pages/DashboardPage'
 import { LandingPage } from './pages/LandingPage'
 import { MyWillPage } from './pages/MyWillPage'
@@ -22,11 +22,14 @@ const queryClient = new QueryClient()
 
 const rootRoute = createRootRoute({
   component: () => (
-    <WagmiProvider config={wagmiAdapter.wagmiConfig}>
+    <PrivyProvider
+      appId={privyConfig.appId}
+      config={privyConfig.config}
+    >
       <QueryClientProvider client={queryClient}>
         <Outlet />
       </QueryClientProvider>
-    </WagmiProvider>
+    </PrivyProvider>
   ),
 })
 
