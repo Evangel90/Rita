@@ -1,4 +1,4 @@
-import { createRootRoute, Outlet } from '@tanstack/router'
+import { createRootRoute, Outlet } from '@tanstack/react-router'
 import { TanStackRouterDevtools } from '@tanstack/router-devtools'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
@@ -8,9 +8,7 @@ export const Route = createRootRoute({
   component: () => (
     <QueryClientProvider client={queryClient}>
       <div className="min-h-screen bg-rita-dark text-white font-sans">
-        {/* Navigation Bar could go here */}
-        <hr />
-        <Outlet /> 
+        <Outlet />
         <TanStackRouterDevtools />
       </div>
     </QueryClientProvider>
