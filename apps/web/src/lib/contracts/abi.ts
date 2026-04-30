@@ -1,0 +1,33 @@
+export const ritaDelegateAbi = [
+  { type: 'function', name: 'getInitialized', stateMutability: 'view', inputs: [], outputs: [{ type: 'bool' }] },
+  { type: 'function', name: 'getHeirs', stateMutability: 'view', inputs: [], outputs: [{ type: 'address[]' }] },
+  { type: 'function', name: 'getIsHeirs', stateMutability: 'view', inputs: [{ name: '_heir', type: 'address' }], outputs: [{ type: 'bool' }] },
+  { type: 'function', name: 'getThreshold', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'getNextPingtime', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'getRitaState', stateMutability: 'view', inputs: [], outputs: [{ type: 'string' }] },
+  { type: 'function', name: 'getSupportedTokens', stateMutability: 'view', inputs: [], outputs: [{ type: 'address[]' }] },
+  { type: 'function', name: 'initialize', stateMutability: 'nonpayable', inputs: [{ name: '_heirs', type: 'address[]' }, { name: '_threshold', type: 'uint256' }, { name: '_coreStables', type: 'address[]' }], outputs: [] },
+  { type: 'function', name: 'ping', stateMutability: 'nonpayable', inputs: [], outputs: [] },
+  { type: 'function', name: 'updateThreshold', stateMutability: 'nonpayable', inputs: [{ name: '_newThreshold', type: 'uint256' }], outputs: [] },
+  { type: 'function', name: 'addHeir', stateMutability: 'nonpayable', inputs: [{ name: 'heir', type: 'address' }], outputs: [] },
+  { type: 'function', name: 'removeHeir', stateMutability: 'nonpayable', inputs: [{ name: 'heir', type: 'address' }], outputs: [] },
+  { type: 'function', name: 'addToken', stateMutability: 'nonpayable', inputs: [{ name: 'token', type: 'address' }], outputs: [] },
+  { type: 'function', name: 'removeToken', stateMutability: 'nonpayable', inputs: [{ name: 'token', type: 'address' }], outputs: [] },
+  { type: 'function', name: 'claimETH', stateMutability: 'nonpayable', inputs: [], outputs: [] },
+  { type: 'function', name: 'claimERC20', stateMutability: 'nonpayable', inputs: [{ name: 'token', type: 'address' }], outputs: [] },
+  { type: 'function', name: 'claimMultipleTokens', stateMutability: 'nonpayable', inputs: [{ name: 'tokens', type: 'address[]' }], outputs: [] },
+  { type: 'event', name: 'Ping', anonymous: false, inputs: [{ indexed: false, name: 'timestamp', type: 'uint256' }] },
+  { type: 'event', name: 'ThresholdUpdated', anonymous: false, inputs: [{ indexed: false, name: '_newThreshold', type: 'uint256' }] },
+  { type: 'event', name: 'HeirAdded', anonymous: false, inputs: [{ indexed: true, name: 'owner', type: 'address' }, { indexed: true, name: 'heir', type: 'address' }] },
+  { type: 'event', name: 'HeirRemoved', anonymous: false, inputs: [{ indexed: true, name: 'owner', type: 'address' }, { indexed: true, name: 'heir', type: 'address' }] },
+  { type: 'event', name: 'AssetsClaimed', anonymous: false, inputs: [{ indexed: true, name: 'heir', type: 'address' }, { indexed: true, name: 'token', type: 'address' }, { indexed: false, name: 'amount', type: 'uint256' }] },
+] as const
+
+export const ritaRegistryAbi = [
+  { type: 'function', name: 'registerHeir', stateMutability: 'nonpayable', inputs: [{ name: 'heir', type: 'address' }], outputs: [] },
+  { type: 'function', name: 'deregisterHeir', stateMutability: 'nonpayable', inputs: [{ name: 'heir', type: 'address' }], outputs: [] },
+  { type: 'function', name: 'getOwnersByHeir', stateMutability: 'view', inputs: [{ name: 'heir', type: 'address' }], outputs: [{ type: 'address[]' }] },
+  { type: 'function', name: 'isOwnerRegistered', stateMutability: 'view', inputs: [{ name: 'heir', type: 'address' }, { name: 'owner', type: 'address' }], outputs: [{ type: 'bool' }] },
+  { type: 'event', name: 'HeirRegistered', anonymous: false, inputs: [{ indexed: true, name: 'owner', type: 'address' }, { indexed: true, name: 'heir', type: 'address' }] },
+  { type: 'event', name: 'HeirDeregistered', anonymous: false, inputs: [{ indexed: true, name: 'owner', type: 'address' }, { indexed: true, name: 'heir', type: 'address' }] },
+] as const
