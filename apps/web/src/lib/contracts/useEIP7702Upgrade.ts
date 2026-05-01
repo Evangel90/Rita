@@ -1,25 +1,19 @@
-import { useWallets, usePrivy, getEmbeddedConnectedWallet } from '@privy-io/react-auth'
-import { createPublicClient, http } from 'viem'
+import { useAccount, useSendTransaction, usePublicClient } from 'wagmi'
 import { sepolia } from 'viem/chains'
 import { CONTRACTS } from './config'
 
 export function useEIP7702Upgrade() {
-  const { user, sendTransaction } = usePrivy()
-  const { wallets } = useWallets()
-  const wallet = getEmbeddedConnectedWallet(wallets)
-
-  const publicClient = createPublicClient({
-    chain: sepolia,
-    transport: http(),
-  })
+  const { address } = useAccount()
+  const { sendTransactionAsync } = useSendTransaction()
+  const publicClient = usePublicClient()
 
   /**
    * Check if the connected EOA already has an EIP-7702 delegation.
    * Verifies it points to the correct Rita delegate contract.
    */
   const checkIsDelegated = async () => {
-    if (!wallet?.address || !publicClient) return false
-    const code = await publicClient.getCode({ address: wallet.address as `0x${string}` })
+    if (!address || !publicClient) return false
+    const code = await publicClient.getCode({ address })
     if (!code || !code.startsWith('0xef0100')) return false
 
     // Verify delegation points to OUR contract (0xef0100 + 20-byte address)
@@ -28,16 +22,14 @@ export function useEIP7702Upgrade() {
   }
 
   /**
-   * Perform the EIP-7702 account upgrade with Privy's embedded wallet.
-   * 
-   * Privy's embedded wallet natively supports EIP-7702 Type 4 transactions
-   * and automatically handles authorization signing.
+   * Perform the EIP-7702 account upgrade.
+   *
+   * Note: EIP-7702 support depends on the wallet. Most wallets don't support
+   * EIP-7702 natively yet. This implementation attempts to send the transaction
+   * but may fail if the wallet doesn't support EIP-7702 authorization.
    */
   const upgrade = async () => {
-    if (!wallet?.address || !user || !publicClient) throw new Error('Missing wallet or account')
-
-    const address = wallet.address as `0x${string}`
-    const currentNonce = await publicClient.getTransactionCount({ address })
+    if (!address || !publicClient) throw new Error('Missing wallet or account')
 
     // Send transaction to the DELEGATED CONTRACT with EIP-7702 authorization
     // The authorization makes the EOA delegate to this contract
@@ -54,7 +46,7 @@ export function useEIP7702Upgrade() {
       console.warn('Gas estimation failed, using default:', err)
     }
 
-    const { transactionHash: hash } = await sendTransaction({
+    const hash = await sendTransactionAsync({
       to: CONTRACTS.ritaDelegate,
       gas: estimatedGas,
       authorizationList: [{
@@ -64,12 +56,12 @@ export function useEIP7702Upgrade() {
       }],
       data: '0x',
       value: 0n,
-    } as any)
-    
-    console.log('Upgrade tx hash:', hash)
+    } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+
+    console.log('Upgrade tx hash:', hash);
 
     // Wait for confirmation
-    const receipt = await publicClient.waitForTransactionReceipt({ hash: hash as `0x${string}` })
+    const receipt = await publicClient.waitForTransactionReceipt({ hash })
     console.log('Upgrade receipt:', receipt)
 
     if (receipt.status === 'reverted') {

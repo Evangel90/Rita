@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { AppShell } from '../components/layout/AppShell'
 import { useRitaActions, useRitaDashboardData } from '../lib/contracts/hooks'
 
@@ -5,7 +6,10 @@ export function DashboardPage() {
   const data = useRitaDashboardData()
   const actions = useRitaActions()
 
-  const daysLeft = data.nextPing ? Math.max(0, Number((data.nextPing - BigInt(Math.floor(Date.now() / 1000))) / 86400n)) : 0
+  const daysLeft = useMemo(() => {
+    // eslint-disable-next-line react-hooks/purity
+    return data.nextPing ? Math.max(0, Number((data.nextPing - BigInt(Math.floor(Date.now() / 1000))) / 86400n)) : 0
+  }, [data.nextPing])
 
   return (
     <AppShell>
@@ -39,13 +43,13 @@ export function DashboardPage() {
                 <button
                   key={token}
                   className="rounded border border-stone-300 px-3 py-1 text-xs"
-                  onClick={() => actions.claimToken()}
+                  onClick={() => actions.claimToken(token)}
                 >
                   Claim {token.slice(0, 6)}...
                 </button>
               ))}
               {data.supportedTokens.length > 1 ? (
-                <button className="rounded border border-stone-300 px-3 py-1 text-xs" onClick={() => actions.claimMultiple()}>
+                <button className="rounded border border-stone-300 px-3 py-1 text-xs" onClick={() => actions.claimMultiple(data.supportedTokens)}>
                   Claim all tracked tokens
                 </button>
               ) : null}
