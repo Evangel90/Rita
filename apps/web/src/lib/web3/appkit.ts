@@ -1,8 +1,35 @@
-/**
- * @deprecated
- * This file is deprecated and no longer used.
- * Use lib/web3/privy.ts instead for wallet configuration.
- * 
- * Privy replaced AppKit + wagmi to provide native EIP-7702 support
- * and seamless account abstraction out of the box.
- */
+import { createAppKit } from '@reown/appkit/react'
+import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
+import { liskSepolia, sepolia } from '@reown/appkit/networks'
+import type { AppKitNetwork } from '@reown/appkit/networks'
+
+const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID
+
+const metadata = {
+  name: 'Rita Protocol',
+  description: 'Decentralized inheritance authority',
+  url: 'http://localhost:5173',
+  icons: ['https://avatars.githubusercontent.com/u/37784886'],
+}
+
+const networks: [AppKitNetwork, ...AppKitNetwork[]] = [liskSepolia, sepolia]
+
+export const wagmiAdapter = new WagmiAdapter({
+  projectId: projectId || 'MISSING_PROJECT_ID',
+  networks,
+  ssr: false,
+})
+
+if (projectId) {
+  createAppKit({
+    adapters: [wagmiAdapter],
+    projectId,
+    networks,
+    metadata,
+    features: {
+      analytics: true,
+    },
+  })
+} else {
+  console.warn('VITE_WALLETCONNECT_PROJECT_ID is missing. AppKit modal is disabled until you set it.')
+}

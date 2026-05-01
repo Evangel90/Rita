@@ -9,9 +9,9 @@ import {
   createRouter,
 } from '@tanstack/react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { PrivyProvider } from '@privy-io/react-auth'
+import { WagmiProvider } from 'wagmi'
 import './index.css'
-import { privyConfig } from './lib/web3/privy'
+import { wagmiAdapter } from './lib/web3/appkit'
 import { DashboardPage } from './pages/DashboardPage'
 import { LandingPage } from './pages/LandingPage'
 import { MyWillPage } from './pages/MyWillPage'
@@ -22,14 +22,11 @@ const queryClient = new QueryClient()
 
 const rootRoute = createRootRoute({
   component: () => (
-    <PrivyProvider
-      appId={privyConfig.appId}
-      config={privyConfig.config}
-    >
+    <WagmiProvider config={wagmiAdapter.wagmiConfig}>
       <QueryClientProvider client={queryClient}>
         <Outlet />
       </QueryClientProvider>
-    </PrivyProvider>
+    </WagmiProvider>
   ),
 })
 
@@ -39,9 +36,9 @@ const landingRoute = createRoute({
   component: LandingPage,
 })
 
-const onboardingUpgradeRoute = createRoute({
+const upgradeRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/onboarding/upgrade',
+  path: '/app/upgrade',
   component: OnboardingUpgradePage,
 })
 
@@ -94,7 +91,7 @@ const notFoundRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   landingRoute,
-  onboardingUpgradeRoute,
+  upgradeRoute,
   dashboardRoute,
   myWillRoute,
   guardiansRoute,

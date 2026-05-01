@@ -1,23 +1,24 @@
 import { useNavigate } from '@tanstack/react-router'
-import { usePrivy } from '@privy-io/react-auth'
+import { useAccount } from 'wagmi'
+import { useAppKit } from '@reown/appkit/react'
 import { useEffect } from 'react'
 
 export function LandingPage() {
-  const { login, authenticated, ready } = usePrivy()
+  const { isConnected } = useAccount()
+  const { open } = useAppKit()
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (ready && authenticated) {
-      navigate({ to: '/onboarding/upgrade' })
+    if (isConnected) {
+      navigate({ to: '/app/dashboard' })
     }
-  }, [ready, authenticated, navigate])
+  }, [isConnected, navigate])
 
-  const handleConnect = () => {
-    if (!ready) return
-    if (authenticated) {
-      navigate({ to: '/onboarding/upgrade' })
+  const handleConnect = async () => {
+    if (isConnected) {
+      navigate({ to: '/app/dashboard' })
     } else {
-      login()
+      await open()
     }
   }
 
@@ -39,10 +40,9 @@ export function LandingPage() {
           </div>
           <button
             onClick={handleConnect}
-            disabled={!ready}
-            className="rounded-lg bg-[#5B7E3C] px-5 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95 cursor-pointer disabled:opacity-50"
+            className="rounded-lg bg-[#5B7E3C] px-5 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95 cursor-pointer"
           >
-            {!ready ? 'Loading...' : authenticated ? 'Go to App' : 'Connect'}
+            {isConnected ? 'Go to App' : 'Connect'}
           </button>
         </div>
       </nav>
@@ -71,10 +71,9 @@ export function LandingPage() {
             <div className="flex flex-col items-center gap-4 sm:flex-row">
               <button
                 onClick={handleConnect}
-                disabled={!ready}
-                className="w-full rounded-lg bg-[#5B7E3C] px-8 py-4 text-center text-lg font-semibold text-white shadow-lg shadow-[#5B7E3C]/10 transition-all hover:opacity-90 active:scale-95 sm:w-auto cursor-pointer disabled:opacity-50"
+                className="w-full rounded-lg bg-[#5B7E3C] px-8 py-4 text-center text-lg font-semibold text-white shadow-lg shadow-[#5B7E3C]/10 transition-all hover:opacity-90 active:scale-95 sm:w-auto cursor-pointer"
               >
-                {!ready ? 'Loading...' : authenticated ? 'Launch App' : 'Connect Wallet'}
+                {isConnected ? 'Launch App' : 'Connect Wallet'}
               </button>
               <a className="font-semibold text-[#5B7E3C] transition-colors hover:text-[#436526]" href="#how-it-works">
                 How it works →

@@ -1,17 +1,24 @@
 import { useState } from 'react'
+import { useNavigate } from '@tanstack/react-router'
 import { isAddress } from 'viem'
 import { AppShell } from '../components/layout/AppShell'
-import { useRitaActions, useRitaDashboardData } from '../lib/contracts/hooks'
+import { useRitaActions, useRitaDashboardData, useIsUpgraded } from '../lib/contracts/hooks'
 
 export function MyWillPage() {
+  const navigate = useNavigate()
   const data = useRitaDashboardData()
   const actions = useRitaActions()
+  const isUpgraded = useIsUpgraded()
   const [thresholdDays, setThresholdDays] = useState(180)
   const [heir, setHeir] = useState('')
   const [token, setToken] = useState('')
 
   const onAddHeir = async () => {
     if (!isAddress(heir)) return
+    if (!isUpgraded) {
+      navigate({ to: '/app/upgrade' })
+      return
+    }
     await actions.addHeir(heir as `0x${string}`)
     await actions.registerHeir(heir as `0x${string}`)
   }
