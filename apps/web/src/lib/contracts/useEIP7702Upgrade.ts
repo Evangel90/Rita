@@ -1,11 +1,14 @@
-import { useAccount, useSendTransaction, usePublicClient } from 'wagmi'
+import { useAccount, useSendTransaction, usePublicClient, useConfig } from 'wagmi'
+import { getConnectorClient } from '@wagmi/core'
+import { eip7702Actions } from 'viem/experimental'
 import { sepolia } from 'viem/chains'
 import { CONTRACTS } from './config'
 
 export function useEIP7702Upgrade() {
-  const { address } = useAccount()
+  const { address, isConnected } = useAccount()
   const { sendTransactionAsync } = useSendTransaction()
-  const publicClient = usePublicClient()
+  const publicClient = usePublicClient({ chainId: sepolia.id })
+  const config = useConfig()
 
   /**
    * Check if the connected EOA already has an EIP-7702 delegation.
@@ -23,44 +26,77 @@ export function useEIP7702Upgrade() {
 
   /**
    * Perform the EIP-7702 account upgrade.
-   *
-   * Note: EIP-7702 support depends on the wallet. Most wallets don't support
-   * EIP-7702 natively yet. This implementation attempts to send the transaction
-   * but may fail if the wallet doesn't support EIP-7702 authorization.
+   * Follows the reference implementation from delegateEPI7702.ts
    */
   const upgrade = async () => {
-    if (!address || !publicClient) throw new Error('Missing wallet or account')
+    if (!address || !isConnected || !publicClient) throw new Error('Missing wallet or account')
 
-    // Send transaction to the DELEGATED CONTRACT with EIP-7702 authorization
-    // The authorization makes the EOA delegate to this contract
-    // EIP-7702 needs higher gas for authorization data
-    let estimatedGas = 100000n // Base estimate for empty call + authorization overhead
-    try {
-      const gas = await publicClient.estimateGas({
-        to: CONTRACTS.ritaDelegate,
-        data: '0x',
+    // 1. Get the wallet client (connector client) and extend with EIP-7702 actions
+    const client = await getConnectorClient(config)
+    const walletClient = (client as any).extend(eip7702Actions)
+
+    // 2. Fetch current nonce
+    const currentNonce = await publicClient.getTransactionCount({ address })
+
+    console.log('Signing EIP-7702 authorization...', {
+      account: address,
+      contractAddress: CONTRACTS.ritaDelegate,
+      nonce: currentNonce + 1
+    })
+
+    // 3. Sign the authorization payload
+    let authorization
+    const isMetaMask = (window as any).ethereum?.isMetaMask
+
+    if (client.account.type === 'json-rpc') {
+      console.log('Account is JSON-RPC, attempting eth_signAuthorization via RPC...')
+      
+      // Use MetaMask delegate if MetaMask is detected
+      const delegateAddress = isMetaMask 
+        ? CONTRACTS.metamaskDelegate 
+        : CONTRACTS.ritaDelegate
+
+      console.log(`Signing for ${isMetaMask ? 'MetaMask' : 'Custom'} delegate: ${delegateAddress}`)
+
+      try {
+        authorization = await walletClient.request({
+          method: 'eth_signAuthorization',
+          params: [{
+            chainId: `0x${client.chain.id.toString(16)}`,
+            address: delegateAddress,
+            nonce: `0x${(currentNonce + 1).toString(16)}`,
+          }]
+        })
+      } catch (err) {
+        console.error('Wallet does not support eth_signAuthorization:', err)
+        throw new Error(
+          'Your wallet does not support EIP-7702 signing (eth_signAuthorization). ' +
+          'Please use a compatible wallet like Reth Odyssey or a local private key account.'
+        )
+      }
+    } else {
+      authorization = await walletClient.signAuthorization({
         account: address,
+        contractAddress: CONTRACTS.ritaDelegate,
+        chainId: client.chain.id,
+        nonce: currentNonce + 1,
       })
-      estimatedGas = BigInt(Math.ceil(Number(gas) * 1.2)) // Add 20% buffer
-    } catch (err) {
-      console.warn('Gas estimation failed, using default:', err)
     }
 
+    console.log('Authorization signed successfully:', authorization)
+
+    // 4. Send the transaction to ourselves (the EOA) to apply the delegation
+    // We follow the reference script by sending to account.address
     const hash = await sendTransactionAsync({
-      to: CONTRACTS.ritaDelegate,
-      gas: estimatedGas,
-      authorizationList: [{
-        chainId: sepolia.id,
-        contractAddress: CONTRACTS.ritaDelegate,
-        nonce: 0,
-      }],
+      to: address,
       data: '0x',
       value: 0n,
-    } as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+      authorizationList: [authorization],
+    } as any)
+    
+    console.log('Upgrade tx hash:', hash)
 
-    console.log('Upgrade tx hash:', hash);
-
-    // Wait for confirmation
+    // 5. Wait for confirmation
     const receipt = await publicClient.waitForTransactionReceipt({ hash })
     console.log('Upgrade receipt:', receipt)
 
@@ -68,14 +104,13 @@ export function useEIP7702Upgrade() {
       throw new Error('EIP-7702 upgrade transaction reverted on-chain')
     }
 
-    // Verify delegation actually landed on the account
+    // 6. Verify delegation actually landed on the account
     const code = await publicClient.getCode({ address })
     console.log('Account code after upgrade:', code)
 
     if (!code || !code.startsWith('0xef0100')) {
       throw new Error(
-        'Delegation did not apply. The account still has no delegate code. ' +
-        'This may indicate a wallet or RPC incompatibility with EIP-7702.'
+        'Delegation did not apply. The account still has no delegate code.'
       )
     }
 

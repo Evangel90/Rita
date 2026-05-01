@@ -1,6 +1,7 @@
 import type { PropsWithChildren } from 'react'
 import { Link, useLocation } from '@tanstack/react-router'
 import { useAccount, useDisconnect } from 'wagmi'
+import { useAppKit } from '@reown/appkit/react'
 
 const navItems = [
   { to: '/app/dashboard', label: 'Dashboard' },
@@ -15,6 +16,7 @@ export function AppShell({ children }: PropsWithChildren) {
   const location = useLocation()
   const { address, isConnected } = useAccount()
   const { disconnect } = useDisconnect()
+  const { open } = useAppKit()
 
   return (
     <div className="min-h-screen bg-[#F9FBF2]">
@@ -41,13 +43,16 @@ export function AppShell({ children }: PropsWithChildren) {
         </nav>
         <div className="px-4">
           {isConnected ? (
-            <button className="w-full rounded-lg bg-stone-800 px-4 py-3 text-sm text-white" onClick={() => disconnect()}>
+            <button className="w-full rounded-lg bg-stone-800 px-4 py-3 text-sm text-white hover:bg-stone-700 transition" onClick={() => disconnect()}>
               Disconnect
             </button>
           ) : (
-            <div className="w-full rounded-lg bg-stone-800 px-4 py-3 text-sm text-stone-400 text-center">
-              Not Connected
-            </div>
+            <button
+              className="w-full rounded-lg bg-stone-800 px-4 py-3 text-sm text-white hover:bg-stone-700 transition"
+              onClick={() => open()}
+            >
+              Connect Wallet
+            </button>
           )}
         </div>
       </aside>

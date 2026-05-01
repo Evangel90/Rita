@@ -26,15 +26,25 @@ async function getProviderAndSigner() {
 }
 
 export async function signEIP7702Authorization() {
-  const { provider, signer } = await getProviderAndSigner()
+  const { ethereum, provider, signer } = await getProviderAndSigner()
   const network = await provider.getNetwork()
   const address = await signer.getAddress()
-  const nonce = await provider.getTransactionCount(address, 'pending')
+  
+  // CRITICAL: When sending from the same account, nonce must be currentNonce + 1
+  const currentNonce = await provider.getTransactionCount(address)
+  const targetNonce = BigInt(currentNonce + 1)
+
+  // Use MetaMask's delegate if MetaMask is detected
+  const delegateAddress = ethereum.isMetaMask 
+    ? CONTRACTS.metamaskDelegate 
+    : CONTRACTS.ritaDelegate
+
+  console.log(`Signing authorization for ${ethereum.isMetaMask ? 'MetaMask' : 'Custom'} delegate: ${delegateAddress} with nonce: ${targetNonce}`)
 
   const auth = {
     chainId: network.chainId,
-    address: CONTRACTS.ritaDelegate,
-    nonce: BigInt(nonce),
+    address: delegateAddress,
+    nonce: targetNonce,
   }
 
   if (typeof (signer as Signer & { authorize?: (auth: { chainId: bigint; address: string; nonce: bigint }) => Promise<Authorization> }).authorize === 'function') {

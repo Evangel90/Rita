@@ -15,7 +15,7 @@ import { wagmiAdapter } from './lib/web3/appkit'
 import { DashboardPage } from './pages/DashboardPage'
 import { LandingPage } from './pages/LandingPage'
 import { MyWillPage } from './pages/MyWillPage'
-import { UpgradePage } from './pages/UpgradePage'
+import { OnboardingUpgradePage } from './pages/OnboardingUpgradePage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 
 const queryClient = new QueryClient()
@@ -39,7 +39,7 @@ const landingRoute = createRoute({
 const upgradeRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/app/upgrade',
-  component: UpgradePage,
+  component: OnboardingUpgradePage,
 })
 
 const dashboardRoute = createRoute({
