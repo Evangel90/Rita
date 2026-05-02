@@ -1,121 +1,54 @@
 import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
-import { useAccount, useSendTransaction, usePublicClient, useDisconnect, useConfig } from 'wagmi'
-import { getConnectorClient } from '@wagmi/core'
-import { useAppKit } from '@reown/appkit/react'
-import { encodeFunctionData } from 'viem'
-import { eip7702Actions } from 'viem/experimental'
+import { usePrivy, useWallets, type ConnectedWallet } from '@privy-io/react-auth'
+import { createPublicClient, http } from 'viem'
 import { sepolia } from 'viem/chains'
-import { ritaDelegateAbi } from '../lib/contracts/abi'
 import { CONTRACTS } from '../lib/contracts/config'
+import { usePrivyEIP7702 } from '../lib/contracts/usePrivyEIP7702'
 
 // Project default constants for initialization
-const DEFAULT_THRESHOLD = 1n
 const DEFAULT_CORE_STABLES: `0x${string}`[] = []
 
 export function OnboardingUpgradePage() {
   const navigate = useNavigate()
-  const { address, isConnected } = useAccount()
-  const { open } = useAppKit()
-  const { disconnect } = useDisconnect()
-  const { sendTransactionAsync } = useSendTransaction()
-  const publicClient = usePublicClient({ chainId: sepolia.id })
-  const config = useConfig()
+  const { login, logout, authenticated, user } = usePrivy()
+  const { wallets } = useWallets()
+  const { upgrade: privyUpgrade } = usePrivyEIP7702()
+
+  const publicClient = createPublicClient({
+    chain: sepolia,
+    transport: http(),
+  })
   
   const [isUpgrading, setIsUpgrading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [step, setStep] = useState<'idle' | 'signing' | 'executing'>('idle')
 
+  const embeddedWallet = wallets.find((w: ConnectedWallet) => w.walletClientType === 'privy')
+  const activeAddress = embeddedWallet?.address as `0x${string}` | undefined
+
   const onUpgrade = async () => {
-    if (!address || !publicClient) return
+    if (!activeAddress) {
+      setError('No wallet connected. Please log in with Privy first.')
+      return
+    }
 
     try {
       setIsUpgrading(true)
       setError(null)
+      
       setStep('signing')
-
-      // 1. Get the wallet client and extend with EIP-7702 actions
-      const client = await getConnectorClient(config)
-      const walletClient = (client as any).extend(eip7702Actions)
-
-      // 2. Fetch current nonce
-      const currentNonce = await publicClient.getTransactionCount({ address })
-
-      // 3. Sign the authorization payload (Reference logic)
-      let authorization
-      const isMetaMask = (window as any).ethereum?.isMetaMask
-
-      if (client.account.type === 'json-rpc') {
-        console.log('Account is JSON-RPC, attempting eth_signAuthorization via RPC...')
-        
-        // Use MetaMask delegate if MetaMask is detected
-        const delegateAddress = isMetaMask 
-          ? CONTRACTS.metamaskDelegate 
-          : CONTRACTS.ritaDelegate
-
-        console.log(`Signing for ${isMetaMask ? 'MetaMask' : 'Custom'} delegate: ${delegateAddress}`)
-
-        try {
-          authorization = await walletClient.request({
-            method: 'eth_signAuthorization',
-            params: [{
-              chainId: `0x${client.chain.id.toString(16)}`,
-              address: delegateAddress,
-              nonce: `0x${(currentNonce + 1).toString(16)}`,
-            }]
-          })
-        } catch (err) {
-          console.error('Wallet does not support eth_signAuthorization:', err)
-          throw new Error(
-            'Your wallet does not support EIP-7702 signing (eth_signAuthorization). ' +
-            'Please use a compatible wallet like Reth Odyssey or a local private key account.'
-          )
-        }
-      } else {
-        authorization = await walletClient.signAuthorization({
-          account: address,
-          contractAddress: CONTRACTS.ritaDelegate,
-          chainId: client.chain.id,
-          nonce: currentNonce + 1,
-        })
-      }
-
-      console.log('Authorization signed successfully:', authorization)
-
-      // Prepare Initialize call data
-      const initData = encodeFunctionData({
-        abi: ritaDelegateAbi,
-        functionName: 'initialize',
-        args: [[address], DEFAULT_THRESHOLD, DEFAULT_CORE_STABLES],
-      })
-
+      // Pass heirs as array with the EOA, threshold in days, and supported tokens
+      await privyUpgrade([activeAddress], 1, DEFAULT_CORE_STABLES)
       setStep('executing')
 
-      // 4. Send transaction to ourselves with authorization and init data
-      // This applies delegation AND initializes in one step
-      const hash = await sendTransactionAsync({
-        to: address,
-        data: initData,
-        // @ts-ignore
-        authorizationList: [authorization],
-      } as any)
-
-      console.log('Upgrade transaction sent:', hash)
-
-      // Wait for confirmation
-      const receipt = await publicClient.waitForTransactionReceipt({ hash })
-      
-      if (receipt.status === 'reverted') {
-        throw new Error('EIP-7702 upgrade transaction reverted on-chain')
-      }
-
-      // Verify delegation
-      const code = await publicClient.getCode({ address })
+      // Final Verification - check if delegation was applied
+      const code = await publicClient.getCode({ address: activeAddress })
       if (!code || !code.startsWith('0xef0100')) {
         throw new Error('Delegation did not apply to the account')
       }
 
-      // Navigate back to my-will after success
+      // Navigate to dashboard after successful upgrade
       await navigate({ to: '/app/my-will' })
     } catch (err) {
       console.error('Upgrade failed:', err)
@@ -133,25 +66,26 @@ export function OnboardingUpgradePage() {
         <h2 className="mb-2 text-2xl font-semibold">Upgrade to Smart Account</h2>
         <p className="mb-6 text-[#43493d]">Transform your wallet into a modular Rita account on Sepolia.</p>
         
-        {!isConnected ? (
+        {!authenticated ? (
           <div className="mb-6">
             <button
-              onClick={() => open()}
+              onClick={() => login()}
               className="w-full rounded-lg bg-[#5B7E3C] py-2 font-semibold text-white transition hover:opacity-90"
             >
-              Connect Wallet
+              Connect with Privy
             </button>
           </div>
         ) : (
           <div className="mb-6 space-y-3">
             <div className="rounded-lg border border-[#E8F5BD] bg-[#F9FBF2] p-3 text-sm text-[#43493d]">
-              <span className="font-medium">Connected wallet:</span> {address?.slice(0, 6)}...{address?.slice(-4)}
+              <span className="font-medium">Privy Account:</span> {activeAddress?.slice(0, 6)}...{activeAddress?.slice(-4)}
+              {user?.email && <div className="mt-1 text-xs opacity-70">{user.email.address}</div>}
             </div>
             <button
-              onClick={() => disconnect()}
+              onClick={() => logout()}
               className="w-full rounded-lg border border-[#E8F5BD] bg-white py-2 font-semibold text-[#5B7E3C] transition hover:bg-[#F9FBF2]"
             >
-              Disconnect
+              Logout
             </button>
           </div>
         )}
@@ -171,14 +105,14 @@ export function OnboardingUpgradePage() {
             </div>
             <div className="flex justify-between border-t border-[#F9FBF2] pt-2 mt-2">
               <span>Initial Heir</span>
-              <span className="font-mono text-xs">Self ({address?.slice(0, 6)}...)</span>
+              <span className="font-mono text-xs">Self ({activeAddress?.slice(0, 6)}...)</span>
             </div>
           </div>
         </div>
 
         <button
           className="w-full rounded-lg bg-[#5B7E3C] py-4 font-semibold text-white shadow-lg shadow-[#5B7E3C]/10 transition-all hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={isUpgrading || !isConnected}
+          disabled={isUpgrading || !authenticated || !activeAddress}
           onClick={onUpgrade}
         >
           {isUpgrading ? (

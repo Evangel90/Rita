@@ -3,7 +3,7 @@ import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 import { createWalletClient, createPublicClient, http } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import { sepolia, liskSepolia } from 'viem/chains';
+import { sepolia } from 'viem/chains';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -69,7 +69,7 @@ async function main() {
       account,
       contractAddress: DELEGATE_ADDRESS,
       chainId: CHAIN.id,
-      nonce: currentNonce + 1,
+      nonce: Number(currentNonce) + 1,
     });
     
     console.log('Authorization signed successfully!');

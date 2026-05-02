@@ -1,35 +1,8 @@
-import { createAppKit } from '@reown/appkit/react'
-import { WagmiAdapter } from '@reown/appkit-adapter-wagmi'
-import { liskSepolia, sepolia } from '@reown/appkit/networks'
-import type { AppKitNetwork } from '@reown/appkit/networks'
+// Web3 setup file - now using Privy for authentication and Wagmi for contract interactions
+// Reown AppKit has been removed in favor of Privy integration
 
-const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID
+export { wagmiConfig } from './wagmi'
 
-const metadata = {
-  name: 'Rita Protocol',
-  description: 'Decentralized inheritance authority',
-  url: 'http://localhost:5173',
-  icons: ['https://avatars.githubusercontent.com/u/37784886'],
-}
-
-const networks: [AppKitNetwork, ...AppKitNetwork[]] = [liskSepolia, sepolia]
-
-export const wagmiAdapter = new WagmiAdapter({
-  projectId: projectId || 'MISSING_PROJECT_ID',
-  networks,
-  ssr: false,
-})
-
-if (projectId) {
-  createAppKit({
-    adapters: [wagmiAdapter],
-    projectId,
-    networks,
-    metadata,
-    features: {
-      analytics: true,
-    },
-  })
-} else {
-  console.warn('VITE_WALLETCONNECT_PROJECT_ID is missing. AppKit modal is disabled until you set it.')
-}
+// Note: Privy provides the PrivyProvider which handles user authentication
+// Wagmi configuration handles RPC connections and contract interactions
+// See main.tsx for complete provider setup

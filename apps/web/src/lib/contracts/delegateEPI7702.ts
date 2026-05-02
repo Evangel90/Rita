@@ -69,7 +69,7 @@ async function main() {
       account,
       contractAddress: DELEGATE_ADDRESS,
       chainId: CHAIN.id,
-      nonce: currentNonce + 1,
+      nonce: Number(BigInt(currentNonce) + 1n),
     });
     
     console.log('Authorization signed successfully!');

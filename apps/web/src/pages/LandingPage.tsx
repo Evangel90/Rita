@@ -1,24 +1,25 @@
 import { useNavigate } from '@tanstack/react-router'
 import { useAccount } from 'wagmi'
-import { useAppKit } from '@reown/appkit/react'
+import { usePrivy } from '@privy-io/react-auth'
 import { useEffect } from 'react'
 
 export function LandingPage() {
   const { isConnected } = useAccount()
-  const { open } = useAppKit()
+  const { authenticated, login } = usePrivy()
   const navigate = useNavigate()
 
   useEffect(() => {
-    if (isConnected) {
+    if (isConnected || authenticated) {
       navigate({ to: '/app/dashboard' })
     }
-  }, [isConnected, navigate])
+  }, [isConnected, authenticated, navigate])
 
   const handleConnect = async () => {
-    if (isConnected) {
+    if (isConnected || authenticated) {
       navigate({ to: '/app/dashboard' })
     } else {
-      await open()
+      // Prefer Privy for onboarding as it supports EIP-7702 better via embedded wallets
+      await login()
     }
   }
 
@@ -42,7 +43,7 @@ export function LandingPage() {
             onClick={handleConnect}
             className="rounded-lg bg-[#5B7E3C] px-5 py-2.5 text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95 cursor-pointer"
           >
-            {isConnected ? 'Go to App' : 'Connect'}
+            {isConnected || authenticated ? 'Go to App' : 'Connect'}
           </button>
         </div>
       </nav>
@@ -73,7 +74,7 @@ export function LandingPage() {
                 onClick={handleConnect}
                 className="w-full rounded-lg bg-[#5B7E3C] px-8 py-4 text-center text-lg font-semibold text-white shadow-lg shadow-[#5B7E3C]/10 transition-all hover:opacity-90 active:scale-95 sm:w-auto cursor-pointer"
               >
-                {isConnected ? 'Launch App' : 'Connect Wallet'}
+                {isConnected || authenticated ? 'Launch App' : 'Get Started'}
               </button>
               <a className="font-semibold text-[#5B7E3C] transition-colors hover:text-[#436526]" href="#how-it-works">
                 How it works →

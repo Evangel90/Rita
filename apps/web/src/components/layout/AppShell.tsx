@@ -1,7 +1,6 @@
 import type { PropsWithChildren } from 'react'
 import { Link, useLocation } from '@tanstack/react-router'
-import { useAccount, useDisconnect } from 'wagmi'
-import { useAppKit } from '@reown/appkit/react'
+import { usePrivy, useWallets, type ConnectedWallet } from '@privy-io/react-auth'
 
 const navItems = [
   { to: '/app/dashboard', label: 'Dashboard' },
@@ -14,9 +13,11 @@ const navItems = [
 
 export function AppShell({ children }: PropsWithChildren) {
   const location = useLocation()
-  const { address, isConnected } = useAccount()
-  const { disconnect } = useDisconnect()
-  const { open } = useAppKit()
+  const { login, logout, authenticated } = usePrivy()
+  const { wallets } = useWallets()
+
+  const embeddedWallet = wallets.find((w: ConnectedWallet) => w.walletClientType === 'privy')
+  const address = embeddedWallet?.address as `0x${string}` | undefined
 
   return (
     <div className="min-h-screen bg-[#F9FBF2]">
@@ -42,23 +43,23 @@ export function AppShell({ children }: PropsWithChildren) {
           })}
         </nav>
         <div className="px-4">
-          {isConnected ? (
-            <button className="w-full rounded-lg bg-stone-800 px-4 py-3 text-sm text-white hover:bg-stone-700 transition" onClick={() => disconnect()}>
-              Disconnect
+          {authenticated ? (
+            <button className="w-full rounded-lg bg-stone-800 px-4 py-3 text-sm text-white hover:bg-stone-700 transition" onClick={() => logout()}>
+              Logout
             </button>
           ) : (
             <button
               className="w-full rounded-lg bg-stone-800 px-4 py-3 text-sm text-white hover:bg-stone-700 transition"
-              onClick={() => open()}
+              onClick={() => login()}
             >
-              Connect Wallet
+              Login with Privy
             </button>
           )}
         </div>
       </aside>
       <header className="fixed right-0 top-0 z-30 flex h-16 w-[calc(100%-260px)] items-center justify-end border-b border-stone-200 bg-[#F9FBF2] px-8">
         <span className="rounded-full border border-stone-200 bg-white px-4 py-1 text-xs">
-          {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Not connected'}
+          {address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Not authenticated'}
         </span>
       </header>
       <main className="ml-[260px] min-h-screen pt-16">{children}</main>
