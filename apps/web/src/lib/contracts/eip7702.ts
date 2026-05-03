@@ -30,9 +30,10 @@ export async function signEIP7702Authorization() {
   const network = await provider.getNetwork()
   const address = await signer.getAddress()
   
-  // CRITICAL: When sending from the same account, nonce must be currentNonce + 1
+  // Fetch current nonce
   const currentNonce = await provider.getTransactionCount(address)
-  const targetNonce = BigInt(currentNonce + 1)
+  // CRITICAL: When sending from the same account, nonce must be currentNonce + 1
+  const targetNonce = BigInt(currentNonce) + 1n
 
   // Use MetaMask's delegate if MetaMask is detected
   const delegateAddress = ethereum.isMetaMask 
@@ -152,13 +153,15 @@ export async function upgradeAndInitialize(
   if (!isDelegated) {
     const authorization = await signEIP7702Authorization()
     await sendUpgradeTransaction(authorization)
+    // Small wait for indexing
+    await new Promise(resolve => setTimeout(resolve, 3000))
   }
 
   const { isDelegated: confirmed, delegatedTo } = await checkDelegation(address)
   console.log('Delegation confirmed:', confirmed, '→', delegatedTo)
 
   if (!confirmed) {
-    throw new Error('Upgrade failed — chain may not support EIP-7702')
+    throw new Error('Upgrade failed — delegation not detected on-chain')
   }
 
   const contract = await getEOAAsContract(address)

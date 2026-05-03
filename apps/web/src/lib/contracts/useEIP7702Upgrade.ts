@@ -41,7 +41,7 @@ export function useEIP7702Upgrade() {
     console.log('Signing EIP-7702 authorization...', {
       account: address,
       contractAddress: CONTRACTS.ritaDelegate,
-      nonce: currentNonce + 1
+      nonce: BigInt(currentNonce) + 1n
     })
 
     // 3. Sign the authorization payload
@@ -64,7 +64,7 @@ export function useEIP7702Upgrade() {
           params: [{
             chainId: `0x${client.chain.id.toString(16)}`,
             address: delegateAddress,
-            nonce: `0x${(currentNonce + 1).toString(16)}`,
+            nonce: `0x${(BigInt(currentNonce) + 1n).toString(16)}`,
           }]
         })
       } catch (err) {
@@ -79,7 +79,7 @@ export function useEIP7702Upgrade() {
         account: address,
         contractAddress: CONTRACTS.ritaDelegate,
         chainId: client.chain.id,
-        nonce: currentNonce + 1,
+        nonce: BigInt(currentNonce) + 1n,
       })
     }
 
@@ -104,13 +104,16 @@ export function useEIP7702Upgrade() {
       throw new Error('EIP-7702 upgrade transaction reverted on-chain')
     }
 
+    // Small delay to ensure state propagation
+    await new Promise(resolve => setTimeout(resolve, 3000))
+
     // 6. Verify delegation actually landed on the account
     const code = await publicClient.getCode({ address })
     console.log('Account code after upgrade:', code)
 
     if (!code || !code.startsWith('0xef0100')) {
       throw new Error(
-        'Delegation did not apply. The account still has no delegate code.'
+        `Delegation did not apply. The account still has no delegate code. Code: ${code || 'empty'}`
       )
     }
 

@@ -10,8 +10,10 @@ import {
 } from '@tanstack/react-router'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { WagmiProvider } from 'wagmi'
+import { PrivyProvider } from '@privy-io/react-auth'
+import { sepolia } from 'viem/chains'
 import './index.css'
-import { wagmiAdapter } from './lib/web3/appkit'
+import { wagmiConfig } from './lib/web3/wagmi'
 import { DashboardPage } from './pages/DashboardPage'
 import { LandingPage } from './pages/LandingPage'
 import { MyWillPage } from './pages/MyWillPage'
@@ -22,11 +24,30 @@ const queryClient = new QueryClient()
 
 const rootRoute = createRootRoute({
   component: () => (
-    <WagmiProvider config={wagmiAdapter.wagmiConfig}>
-      <QueryClientProvider client={queryClient}>
-        <Outlet />
-      </QueryClientProvider>
-    </WagmiProvider>
+    <PrivyProvider
+      appId={import.meta.env.VITE_PRIVY_APP_ID || ''}
+      config={{
+        loginMethods: ['email', 'wallet', 'google'],
+        appearance: {
+          theme: 'light',
+          accentColor: '#5B7E3C',
+          showWalletLoginFirst: true,
+        },
+        defaultChain: sepolia,
+        supportedChains: [sepolia],
+        embeddedWallets: {
+          ethereum: {
+            createOnLogin: 'users-without-wallets',
+          },
+        },
+      }}
+    >
+      <WagmiProvider config={wagmiConfig}>
+        <QueryClientProvider client={queryClient}>
+          <Outlet />
+        </QueryClientProvider>
+      </WagmiProvider>
+    </PrivyProvider>
   ),
 })
 
