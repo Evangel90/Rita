@@ -6,6 +6,25 @@ import { ritaDelegateAbi, ritaRegistryAbi } from './abi'
 import { checkDelegation, upgradeAndInitialize } from './eip7702'
 import { CONTRACTS } from './config'
 
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export interface InheritanceEntry {
+  /** The owner EOA whose account holds the inheritance */
+  owner: `0x${string}`
+  /** "ACTIVE" | "CLAIMABLE" | undefined while loading */
+  ritaState: string | undefined
+  /** Unix timestamp (seconds) when the account becomes claimable */
+  nextPingtime: bigint | undefined
+  /** ERC-20 tokens the heir can claim */
+  supportedTokens: `0x${string}`[]
+  /** ETH balance of the owner's delegated account */
+  ethBalance: string
+  /** True when the account is past its threshold and assets can be claimed */
+  isClaimable: boolean
+}
+
 export function useRitaDashboardData() {
   const { address } = useAccount()
 
@@ -47,6 +66,147 @@ export function useRitaDashboardData() {
     }),
     [data, ethBalance, ownersByHeir],
   )
+}
+
+// ---------------------------------------------------------------------------
+// useInheritances — heir-centric hook
+// ---------------------------------------------------------------------------
+// Fetches all wills the connected wallet is a beneficiary of.
+// For each owner returned by RitaRegistry.getOwnersByHeir we batch-read the
+// relevant state from the owner's delegated account (RitaDelegate ABI).
+// ---------------------------------------------------------------------------
+
+export function useInheritances() {
+  const { address } = useAccount()
+
+  // Step 1: get the list of owners who registered this address as an heir
+  const { data: ownersData, isLoading: ownersLoading } = useReadContracts({
+    contracts: [
+      {
+        abi: ritaRegistryAbi,
+        address: CONTRACTS.ritaRegistry,
+        functionName: 'getOwnersByHeir',
+        args: [address ?? '0x0000000000000000000000000000000000000000'],
+      },
+    ],
+    query: { enabled: Boolean(address) },
+  })
+
+  const owners = useMemo<`0x${string}`[]>(
+    () => (ownersData?.[0].result as `0x${string}`[] | undefined) ?? [],
+    [ownersData],
+  )
+
+  // Step 2: for each owner, read state + tokens from their delegated account
+  const perOwnerContracts = useMemo(
+    () =>
+      owners.flatMap((owner) => [
+        { abi: ritaDelegateAbi, address: owner, functionName: 'getRitaState' as const },
+        { abi: ritaDelegateAbi, address: owner, functionName: 'getNextPingtime' as const },
+        { abi: ritaDelegateAbi, address: owner, functionName: 'getSupportedTokens' as const },
+      ]),
+    [owners],
+  )
+
+  const { data: perOwnerData, isLoading: detailsLoading } = useReadContracts({
+    contracts: perOwnerContracts,
+    query: { enabled: owners.length > 0 },
+  })
+
+  // Step 3: read ETH balances for each owner
+  // wagmi's useBalance only handles one address at a time, so we use
+  // useReadContracts with a dummy eth_getBalance workaround — instead we
+  // derive balances from the per-owner data fetch via a separate query.
+  const balanceContracts = useMemo(
+    () =>
+      owners.map((owner) => ({
+        abi: [
+          {
+            type: 'function' as const,
+            name: 'getBalance' as const,
+            stateMutability: 'view' as const,
+            inputs: [],
+            outputs: [{ type: 'uint256' }],
+          },
+        ],
+        address: owner,
+        functionName: 'getBalance' as const,
+      })),
+    [owners],
+  )
+
+  // We can't batch eth_getBalance via useReadContracts, so we use useBalance
+  // for the first owner only and note the limitation. For a full multi-owner
+  // balance read we rely on the owner's ETH balance via a public client query.
+  const publicClient = usePublicClient()
+
+  const { data: ethBalances } = useQuery({
+    queryKey: ['heir-eth-balances', owners.join(',')],
+    queryFn: async () => {
+      if (!publicClient || owners.length === 0) return []
+      return Promise.all(
+        owners.map((owner) =>
+          publicClient.getBalance({ address: owner }).then(formatEther).catch(() => '0'),
+        ),
+      )
+    },
+    enabled: owners.length > 0 && Boolean(publicClient),
+  })
+
+  // Step 4: assemble InheritanceEntry[]
+  const inheritances = useMemo<InheritanceEntry[]>(() => {
+    if (owners.length === 0) return []
+    const now = BigInt(Math.floor(Date.now() / 1000))
+
+    return owners.map((owner, i) => {
+      const base = i * 3
+      const ritaState = perOwnerData?.[base]?.result as string | undefined
+      const nextPingtime = perOwnerData?.[base + 1]?.result as bigint | undefined
+      const supportedTokens = (perOwnerData?.[base + 2]?.result as `0x${string}`[] | undefined) ?? []
+      const ethBalance = ethBalances?.[i] ?? '0'
+      const isClaimable = ritaState === 'CLAIMABLE' || (nextPingtime !== undefined && now >= nextPingtime)
+
+      return { owner, ritaState, nextPingtime, supportedTokens, ethBalance, isClaimable }
+    })
+  }, [owners, perOwnerData, ethBalances])
+
+  return {
+    inheritances,
+    isLoading: ownersLoading || (owners.length > 0 && detailsLoading),
+    hasInheritance: inheritances.length > 0,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// useClaimInheritance — per-owner claim actions
+// ---------------------------------------------------------------------------
+
+export function useClaimInheritance(owner: `0x${string}`) {
+  const { writeContractAsync, isPending } = useWriteContract()
+
+  return {
+    isPending,
+    claimEth: () =>
+      writeContractAsync({
+        abi: ritaDelegateAbi,
+        address: owner,
+        functionName: 'claimETH',
+      }),
+    claimToken: (token: `0x${string}`) =>
+      writeContractAsync({
+        abi: ritaDelegateAbi,
+        address: owner,
+        functionName: 'claimERC20',
+        args: [token],
+      }),
+    claimMultiple: (tokens: `0x${string}`[]) =>
+      writeContractAsync({
+        abi: ritaDelegateAbi,
+        address: owner,
+        functionName: 'claimMultipleTokens',
+        args: [tokens],
+      }),
+  }
 }
 
 export function useRitaActions() {
