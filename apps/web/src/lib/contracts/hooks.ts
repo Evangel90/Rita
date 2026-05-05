@@ -2,8 +2,10 @@ import { useMemo, useState } from 'react'
 import { formatEther } from 'viem'
 import { useAccount, useBalance, useReadContracts, useWriteContract, usePublicClient } from 'wagmi'
 import { useQuery } from '@tanstack/react-query'
+import { useWallets } from '@privy-io/react-auth'
 import { ritaDelegateAbi, ritaRegistryAbi } from './abi'
 import { checkDelegation, upgradeAndInitialize } from './eip7702'
+import { usePrivyEIP7702 } from './usePrivyEIP7702'
 import { CONTRACTS } from './config'
 
 // ---------------------------------------------------------------------------
@@ -76,6 +78,15 @@ export function useRitaDashboardData() {
 // relevant state from the owner's delegated account (RitaDelegate ABI).
 // ---------------------------------------------------------------------------
 
+export interface InheritanceEntry {
+  owner: `0x${string}`
+  ritaState: string | undefined
+  nextPingtime: bigint | undefined
+  supportedTokens: `0x${string}`[]
+  ethBalance: string
+  isClaimable: boolean
+}
+
 export function useInheritances() {
   const { address } = useAccount()
 
@@ -115,27 +126,7 @@ export function useInheritances() {
 
   // Step 3: read ETH balances for each owner
   // wagmi's useBalance only handles one address at a time, so we use
-  // useReadContracts with a dummy eth_getBalance workaround — instead we
-  // derive balances from the per-owner data fetch via a separate query.
-  const balanceContracts = useMemo(
-    () =>
-      owners.map((owner) => ({
-        abi: [
-          {
-            type: 'function' as const,
-            name: 'getBalance' as const,
-            stateMutability: 'view' as const,
-            inputs: [],
-            outputs: [{ type: 'uint256' }],
-          },
-        ],
-        address: owner,
-        functionName: 'getBalance' as const,
-      })),
-    [owners],
-  )
-
-  // We can't batch eth_getBalance via useReadContracts, so we use useBalance
+  // a public client query to fetch each owner's ETH balance.
   // for the first owner only and note the limitation. For a full multi-owner
   // balance read we rely on the owner's ETH balance via a public client query.
   const publicClient = usePublicClient()
@@ -329,8 +320,11 @@ export function useIsUpgraded() {
 
 export function useEIP7702() {
   const { address } = useAccount()
+  const { wallets } = useWallets()
   const [isPending, setIsPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  
+  const privy7702 = usePrivyEIP7702()
 
   const upgrade = async (
     heirs: string[],
@@ -341,7 +335,19 @@ export function useEIP7702() {
     setError(null)
 
     try {
-      await upgradeAndInitialize(heirs, thresholdDays, stableTokens)
+      const embeddedWallet = wallets.find((w) => w.walletClientType === 'privy');
+      
+      if (embeddedWallet) {
+        console.log('Detected Privy embedded wallet, using Privy EIP-7702 path...');
+        await privy7702.upgrade(
+          heirs as `0x${string}`[],
+          thresholdDays,
+          stableTokens as `0x${string}`[]
+        );
+      } else {
+        console.log('No Privy embedded wallet, using standard EIP-7702 path...');
+        await upgradeAndInitialize(heirs, thresholdDays, stableTokens)
+      }
     } catch (err: any) {
       setError(err?.message ?? 'Upgrade failed')
       throw err
