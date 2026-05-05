@@ -8,6 +8,25 @@ import { checkDelegation, upgradeAndInitialize } from './eip7702'
 import { usePrivyEIP7702 } from './usePrivyEIP7702'
 import { CONTRACTS } from './config'
 
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export interface InheritanceEntry {
+  /** The owner EOA whose account holds the inheritance */
+  owner: `0x${string}`
+  /** "ACTIVE" | "CLAIMABLE" | undefined while loading */
+  ritaState: string | undefined
+  /** Unix timestamp (seconds) when the account becomes claimable */
+  nextPingtime: bigint | undefined
+  /** ERC-20 tokens the heir can claim */
+  supportedTokens: `0x${string}`[]
+  /** ETH balance of the owner's delegated account */
+  ethBalance: string
+  /** True when the account is past its threshold and assets can be claimed */
+  isClaimable: boolean
+}
+
 export function useRitaDashboardData() {
   const { address } = useAccount()
 
