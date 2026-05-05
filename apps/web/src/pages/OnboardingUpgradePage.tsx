@@ -1,8 +1,6 @@
 import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { usePrivy, useWallets, type ConnectedWallet } from '@privy-io/react-auth'
-import { createPublicClient, http } from 'viem'
-import { sepolia } from 'viem/chains'
 import { CONTRACTS } from '../lib/contracts/config'
 import { usePrivyEIP7702 } from '../lib/contracts/usePrivyEIP7702'
 
@@ -15,14 +13,10 @@ export function OnboardingUpgradePage() {
   const { wallets } = useWallets()
   const { upgrade: privyUpgrade } = usePrivyEIP7702()
 
-  const publicClient = createPublicClient({
-    chain: sepolia,
-    transport: http(),
-  })
-  
+
   const [isUpgrading, setIsUpgrading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [step, setStep] = useState<'idle' | 'signing' | 'executing'>('idle')
+  const [step, setStep] = useState<'idle' | 'signing' | 'delegating' | 'initializing'>('idle')
 
   const embeddedWallet = wallets.find((w: ConnectedWallet) => w.walletClientType === 'privy')
   const activeAddress = embeddedWallet?.address as `0x${string}` | undefined
@@ -36,19 +30,11 @@ export function OnboardingUpgradePage() {
     try {
       setIsUpgrading(true)
       setError(null)
-      
       setStep('signing')
-      // Pass heirs as array with the EOA, threshold in days, and supported tokens
+
       await privyUpgrade([activeAddress], 1, DEFAULT_CORE_STABLES)
-      setStep('executing')
 
-      // Final Verification - check if delegation was applied
-      const code = await publicClient.getCode({ address: activeAddress })
-      if (!code || !code.startsWith('0xef0100')) {
-        throw new Error('Delegation did not apply to the account')
-      }
-
-      // Navigate to dashboard after successful upgrade
+      // Navigate to dashboard — the hook verified everything internally
       await navigate({ to: '/app/my-will' })
     } catch (err) {
       console.error('Upgrade failed:', err)
@@ -118,8 +104,9 @@ export function OnboardingUpgradePage() {
           {isUpgrading ? (
             <span className="flex items-center justify-center gap-2">
               <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              {step === 'signing' && 'Preparing Upgrade...'}
-              {step === 'executing' && 'Executing Transaction...'}
+              {step === 'signing' && 'Signing Authorization...'}
+              {step === 'delegating' && 'Delegating Account...'}
+              {step === 'initializing' && 'Initializing Smart Will...'}
             </span>
           ) : (
             'Sign & Upgrade'

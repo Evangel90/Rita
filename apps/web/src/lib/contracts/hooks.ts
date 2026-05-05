@@ -2,8 +2,10 @@ import { useMemo, useState } from 'react'
 import { formatEther } from 'viem'
 import { useAccount, useBalance, useReadContracts, useWriteContract, usePublicClient } from 'wagmi'
 import { useQuery } from '@tanstack/react-query'
+import { useWallets } from '@privy-io/react-auth'
 import { ritaDelegateAbi, ritaRegistryAbi } from './abi'
 import { checkDelegation, upgradeAndInitialize } from './eip7702'
+import { usePrivyEIP7702 } from './usePrivyEIP7702'
 import { CONTRACTS } from './config'
 
 export function useRitaDashboardData() {
@@ -47,6 +49,136 @@ export function useRitaDashboardData() {
     }),
     [data, ethBalance, ownersByHeir],
   )
+}
+
+// ---------------------------------------------------------------------------
+// useInheritances — heir-centric hook
+// ---------------------------------------------------------------------------
+// Fetches all wills the connected wallet is a beneficiary of.
+// For each owner returned by RitaRegistry.getOwnersByHeir we batch-read the
+// relevant state from the owner's delegated account (RitaDelegate ABI).
+// ---------------------------------------------------------------------------
+
+export interface InheritanceEntry {
+  owner: `0x${string}`
+  ritaState: string | undefined
+  nextPingtime: bigint | undefined
+  supportedTokens: `0x${string}`[]
+  ethBalance: string
+  isClaimable: boolean
+}
+
+export function useInheritances() {
+  const { address } = useAccount()
+
+  // Step 1: get the list of owners who registered this address as an heir
+  const { data: ownersData, isLoading: ownersLoading } = useReadContracts({
+    contracts: [
+      {
+        abi: ritaRegistryAbi,
+        address: CONTRACTS.ritaRegistry,
+        functionName: 'getOwnersByHeir',
+        args: [address ?? '0x0000000000000000000000000000000000000000'],
+      },
+    ],
+    query: { enabled: Boolean(address) },
+  })
+
+  const owners = useMemo<`0x${string}`[]>(
+    () => (ownersData?.[0].result as `0x${string}`[] | undefined) ?? [],
+    [ownersData],
+  )
+
+  // Step 2: for each owner, read state + tokens from their delegated account
+  const perOwnerContracts = useMemo(
+    () =>
+      owners.flatMap((owner) => [
+        { abi: ritaDelegateAbi, address: owner, functionName: 'getRitaState' as const },
+        { abi: ritaDelegateAbi, address: owner, functionName: 'getNextPingtime' as const },
+        { abi: ritaDelegateAbi, address: owner, functionName: 'getSupportedTokens' as const },
+      ]),
+    [owners],
+  )
+
+  const { data: perOwnerData, isLoading: detailsLoading } = useReadContracts({
+    contracts: perOwnerContracts,
+    query: { enabled: owners.length > 0 },
+  })
+
+  // Step 3: read ETH balances for each owner
+  // wagmi's useBalance only handles one address at a time, so we use
+  // a public client query to fetch each owner's ETH balance.
+  // for the first owner only and note the limitation. For a full multi-owner
+  // balance read we rely on the owner's ETH balance via a public client query.
+  const publicClient = usePublicClient()
+
+  const { data: ethBalances } = useQuery({
+    queryKey: ['heir-eth-balances', owners.join(',')],
+    queryFn: async () => {
+      if (!publicClient || owners.length === 0) return []
+      return Promise.all(
+        owners.map((owner) =>
+          publicClient.getBalance({ address: owner }).then(formatEther).catch(() => '0'),
+        ),
+      )
+    },
+    enabled: owners.length > 0 && Boolean(publicClient),
+  })
+
+  // Step 4: assemble InheritanceEntry[]
+  const inheritances = useMemo<InheritanceEntry[]>(() => {
+    if (owners.length === 0) return []
+    const now = BigInt(Math.floor(Date.now() / 1000))
+
+    return owners.map((owner, i) => {
+      const base = i * 3
+      const ritaState = perOwnerData?.[base]?.result as string | undefined
+      const nextPingtime = perOwnerData?.[base + 1]?.result as bigint | undefined
+      const supportedTokens = (perOwnerData?.[base + 2]?.result as `0x${string}`[] | undefined) ?? []
+      const ethBalance = ethBalances?.[i] ?? '0'
+      const isClaimable = ritaState === 'CLAIMABLE' || (nextPingtime !== undefined && now >= nextPingtime)
+
+      return { owner, ritaState, nextPingtime, supportedTokens, ethBalance, isClaimable }
+    })
+  }, [owners, perOwnerData, ethBalances])
+
+  return {
+    inheritances,
+    isLoading: ownersLoading || (owners.length > 0 && detailsLoading),
+    hasInheritance: inheritances.length > 0,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// useClaimInheritance — per-owner claim actions
+// ---------------------------------------------------------------------------
+
+export function useClaimInheritance(owner: `0x${string}`) {
+  const { writeContractAsync, isPending } = useWriteContract()
+
+  return {
+    isPending,
+    claimEth: () =>
+      writeContractAsync({
+        abi: ritaDelegateAbi,
+        address: owner,
+        functionName: 'claimETH',
+      }),
+    claimToken: (token: `0x${string}`) =>
+      writeContractAsync({
+        abi: ritaDelegateAbi,
+        address: owner,
+        functionName: 'claimERC20',
+        args: [token],
+      }),
+    claimMultiple: (tokens: `0x${string}`[]) =>
+      writeContractAsync({
+        abi: ritaDelegateAbi,
+        address: owner,
+        functionName: 'claimMultipleTokens',
+        args: [tokens],
+      }),
+  }
 }
 
 export function useRitaActions() {
@@ -169,8 +301,11 @@ export function useIsUpgraded() {
 
 export function useEIP7702() {
   const { address } = useAccount()
+  const { wallets } = useWallets()
   const [isPending, setIsPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  
+  const privy7702 = usePrivyEIP7702()
 
   const upgrade = async (
     heirs: string[],
@@ -181,7 +316,19 @@ export function useEIP7702() {
     setError(null)
 
     try {
-      await upgradeAndInitialize(heirs, thresholdDays, stableTokens)
+      const embeddedWallet = wallets.find((w) => w.walletClientType === 'privy');
+      
+      if (embeddedWallet) {
+        console.log('Detected Privy embedded wallet, using Privy EIP-7702 path...');
+        await privy7702.upgrade(
+          heirs as `0x${string}`[],
+          thresholdDays,
+          stableTokens as `0x${string}`[]
+        );
+      } else {
+        console.log('No Privy embedded wallet, using standard EIP-7702 path...');
+        await upgradeAndInitialize(heirs, thresholdDays, stableTokens)
+      }
     } catch (err: any) {
       setError(err?.message ?? 'Upgrade failed')
       throw err

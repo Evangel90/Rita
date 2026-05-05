@@ -87,7 +87,7 @@ export function MyWillPage() {
           </div>
         </div>
 
-        <aside className="space-y-6 lg:col-span-4">
+        {/* <aside className="space-y-6 lg:col-span-4">
           <div className="rounded-xl border border-[#E8F5BD] bg-white p-6">
             <h4 className="mb-3 text-sm font-semibold uppercase text-[#5B7E3C]">Status Overview</h4>
             <p className="text-sm">Protocol state: {data.ritaState ?? 'Loading...'}</p>
@@ -100,7 +100,7 @@ export function MyWillPage() {
               Revoke Module (Unavailable)
             </button>
           </div>
-        </aside>
+        </aside> */}
       </div>
     </AppShell>
   )
