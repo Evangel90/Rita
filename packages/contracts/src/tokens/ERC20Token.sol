@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-contract GammaToken {
-    string public name = "Gamma Token";
-    string public symbol = "GAMMA";
+contract ERC20Token {
+    string public name;
+    string public symbol;
     uint8 public decimals = 18;
     uint256 public totalSupply;
+    address public owner;
 
     mapping(address => uint256) public balanceOf;
     mapping(address => mapping(address => uint256)) public allowance;
@@ -13,10 +14,13 @@ contract GammaToken {
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
 
-    constructor(uint256 initialSupply) {
-        totalSupply = initialSupply * 10 ** decimals;
-        balanceOf[msg.sender] = totalSupply;
-        emit Transfer(address(0), msg.sender, totalSupply);
+    constructor(string memory _name, string memory _symbol, uint256 _initialSupply, address _owner) {
+        name = _name;
+        symbol = _symbol;
+        owner = _owner;
+        totalSupply = _initialSupply * 10 ** decimals;
+        balanceOf[_owner] = totalSupply;
+        emit Transfer(address(0), _owner, totalSupply);
     }
 
     function transfer(address to, uint256 amount) public returns (bool) {
@@ -44,6 +48,7 @@ contract GammaToken {
     }
 
     function mint(address to, uint256 amount) public {
+        require(msg.sender == owner, "Only owner can mint");
         totalSupply += amount;
         balanceOf[to] += amount;
         emit Transfer(address(0), to, amount);
