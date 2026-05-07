@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { useAccount } from 'wagmi'
+import { useNavigate } from '@tanstack/react-router'
+import { usePrivy } from '@privy-io/react-auth'
 import { AppShell } from '../components/layout/AppShell'
-import { useInheritances, useClaimInheritance, type InheritanceEntry } from '../lib/contracts/hooks'
+import { useInheritances, useClaimInheritance, type InheritanceEntry, useIsDelegated, useRitaDashboardData, useRitaAccount } from '../lib/contracts/hooks'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -202,14 +203,90 @@ function LoadingSkeleton() {
 // ---------------------------------------------------------------------------
 
 export function DashboardPage() {
-  const { address, isConnected } = useAccount()
-  const { inheritances, isLoading, hasInheritance } = useInheritances()
+  const navigate = useNavigate()
+  const { login, authenticated } = usePrivy()
+  const { address, isConnected } = useRitaAccount()
+  const { inheritances, isLoading: inheritancesLoading, hasInheritance } = useInheritances()
+  const { isDelegated, isLoading: delegationLoading } = useIsDelegated()
+  const ritaData = useRitaDashboardData()
+  const [isChecking, setIsChecking] = useState(false)
+
+  const isLoading = inheritancesLoading || delegationLoading || ritaData.isLoading
+
+  const handleCreateWill = async () => {
+    // If not authenticated, trigger login
+    if (!authenticated) {
+      login()
+      return
+    }
+
+    // If we're already checking, bail
+    if (isChecking) return
+    
+    // If authenticated but Wagmi isn't ready yet, it's likely a connection lag
+    if (!isConnected) {
+      console.log('[Dashboard] Authenticated but Wagmi not connected yet. Waiting...')
+    }
+
+    setIsChecking(true)
+    console.log('[Dashboard] Checking delegation status...', { isDelegated, isInitialized: ritaData.isInitialized })
+    
+    try {
+      // If data is still loading, wait a bit longer to be sure we have the latest chain state
+      if (ritaData.ritaState === undefined) {
+        await new Promise(resolve => setTimeout(resolve, 1500))
+      }
+
+      console.log('[Dashboard] Final check before redirect:', { isDelegated, isInitialized: ritaData.isInitialized })
+
+      if (!isDelegated) {
+        navigate({ to: '/app/upgrade' })
+      } else if (!ritaData.isInitialized) {
+        navigate({ to: '/app/initialize-will' })
+      } else {
+        navigate({ to: '/app/my-will' })
+      }
+    } catch (err) {
+      console.error('[Dashboard] Error during delegation check:', err)
+    } finally {
+      setIsChecking(false)
+    }
+  }
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-[900px] space-y-6 p-6">
+      <div className="mx-auto max-w-[900px] space-y-10 p-6">
+        {/* Benefactor CTA Section */}
+        <section className="rounded-2xl border border-[#E8F5BD] bg-white p-8 shadow-sm">
+          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div className="max-w-md">
+              <h2 className="text-2xl font-bold text-stone-800">Secure Your Legacy</h2>
+              <p className="mt-2 text-stone-600">
+                Set up your own modular inheritance plan. Delegate your account authority to the 
+                Rita Protocol via EIP-7702.
+              </p>
+            </div>
+            <button
+              onClick={handleCreateWill}
+              disabled={isChecking}
+              className="shrink-0 rounded-xl bg-[#5B7E3C] px-8 py-4 font-bold text-white shadow-lg shadow-[#5B7E3C]/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {!authenticated ? (
+                'Connect to Create Will'
+              ) : isChecking ? (
+                <span className="flex items-center gap-2">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Verifying...
+                </span>
+              ) : (
+                isDelegated && ritaData.isInitialized ? 'Manage My Will' : 'Create My Will'
+              )}
+            </button>
+          </div>
+        </section>
+
         {/* Page header */}
-        <div>
+        <div className="border-t border-stone-100 pt-10">
           <h1 className="text-2xl font-bold text-stone-800">My Inheritances</h1>
           {isConnected && address && (
             <p className="mt-1 font-mono text-sm text-stone-500">{formatAddress(address)}</p>

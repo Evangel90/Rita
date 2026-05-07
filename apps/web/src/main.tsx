@@ -17,6 +17,7 @@ import { wagmiConfig } from './lib/web3/wagmi'
 import { DashboardPage } from './pages/DashboardPage'
 import { LandingPage } from './pages/LandingPage'
 import { MyWillPage } from './pages/MyWillPage'
+import { InitializeWillPage } from './pages/InitializeWillPage'
 import { OnboardingUpgradePage } from './pages/OnboardingUpgradePage'
 import { PlaceholderPage } from './pages/PlaceholderPage'
 
@@ -75,6 +76,12 @@ const myWillRoute = createRoute({
   component: MyWillPage,
 })
 
+const initializeWillRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/app/initialize-will',
+  component: InitializeWillPage,
+})
+
 const guardiansRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/app/guardians',
@@ -115,6 +122,7 @@ const routeTree = rootRoute.addChildren([
   upgradeRoute,
   dashboardRoute,
   myWillRoute,
+  initializeWillRoute,
   guardiansRoute,
   pulseRoute,
   assetsRoute,
