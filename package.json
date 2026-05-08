@@ -4,8 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "concurrently \"pnpm -F @rita/shared dev\" \"pnpm -F api dev\" \"pnpm -F web dev\"",
-    "build": "pnpm -r build",
+    "dev": "pnpm -F web dev",
+    "build": "pnpm -F web build",
+    "preview": "pnpm -F web preview",
     "sync-abis": "node scripts/sync-abis.js"
   },
   "keywords": [],

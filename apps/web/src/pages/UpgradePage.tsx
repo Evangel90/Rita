@@ -1,6 +1,6 @@
 import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
-import { useAccount, useConnect } from 'wagmi'
+import { useConnect } from 'wagmi'
 import { useEIP7702, useIsDelegated, useRitaDashboardData, useRitaAccount } from '../lib/contracts/hooks'
 import { CONTRACTS } from '../lib/contracts/config'
 

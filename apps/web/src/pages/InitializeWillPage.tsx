@@ -49,10 +49,11 @@ export function InitializeWillPage() {
       else if (thresholdUnit === 'hours') thresholdSeconds = Math.floor(thresholdValue * 3600)
       else thresholdSeconds = Math.floor(thresholdValue * 60)
       
-      console.log('Initializing with:', { validHeirs, thresholdSeconds: BigInt(thresholdSeconds), validTokenAddresses })
+      const thresholdSecondsBigInt = BigInt(thresholdSeconds)
+      console.log('Initializing with:', { validHeirs, thresholdSeconds: thresholdSecondsBigInt, validTokenAddresses })
       
       // 1. Initialize the smart account
-      await actions.initialize(validHeirs, thresholdSeconds, validTokenAddresses)
+      await actions.initialize(validHeirs, thresholdSecondsBigInt, validTokenAddresses)
       
       // 2. Register heirs in the global registry
       for (const heir of validHeirs) {

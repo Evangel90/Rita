@@ -13,6 +13,7 @@
     "@privy-io/react-auth": "^3.23.1",
     "@tanstack/react-query": "^5.100.3",
     "@tanstack/react-router": "^1.168.24",
+    "@wagmi/core": "^3.0.0",
     "dotenv": "^16.6.1",
     "ethers": "^6.16.0",
     "lucide-react": "^1.11.0",
