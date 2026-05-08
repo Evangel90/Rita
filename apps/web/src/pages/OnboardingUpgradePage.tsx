@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { usePrivy, useWallets, type ConnectedWallet } from '@privy-io/react-auth'
 import { CONTRACTS } from '../lib/contracts/config'
 import { usePrivyEIP7702 } from '../lib/contracts/usePrivyEIP7702'
-import { useIsDelegated, useRitaDashboardData, useRitaAccount } from '../lib/contracts/hooks'
+import { useIsDelegated, useRitaDashboardData } from '../lib/contracts/hooks'
 
 // Project default constants for initialization
 const DEFAULT_CORE_STABLES: `0x${string}`[] = []
@@ -13,7 +13,6 @@ export function OnboardingUpgradePage() {
   const { login, logout, authenticated, user } = usePrivy()
   const { wallets } = useWallets()
   const { upgrade: privyUpgrade } = usePrivyEIP7702()
-  const { address } = useRitaAccount()
   const { isDelegated, isLoading: delegationLoading } = useIsDelegated()
   const ritaData = useRitaDashboardData()
 
