@@ -4,6 +4,12 @@ import { isAddress } from 'viem'
 import { AppShell } from '../components/layout/AppShell'
 import { useRitaActions, useRitaDashboardData, useIsDelegated } from '../lib/contracts/hooks'
 
+const CORE_TOKENS = [
+  { symbol: 'ALPHA', address: '0xBB3518269b907B55B433EE10680619695bFE14AA' as `0x${string}` },
+  { symbol: 'BETA', address: '0x39C1C424112680CAA0743A6fE323617fFBC1626c' as `0x${string}` },
+  { symbol: 'GAMMA', address: '0x601d9C144933CD2533939c40a952cfa315C2Fa41' as `0x${string}` },
+]
+
 export function InitializeWillPage() {
   const navigate = useNavigate()
   const data = useRitaDashboardData()
@@ -11,8 +17,8 @@ export function InitializeWillPage() {
   const { isDelegated, isLoading: delegationLoading } = useIsDelegated()
 
   const [heirs, setHeirs] = useState<string[]>([''])
-  const [thresholdDays, setThresholdDays] = useState(180)
-  const [coreTokens, setCoreTokens] = useState<string[]>([''])
+  const [thresholdValue, setThresholdValue] = useState(180)
+  const [thresholdUnit, setThresholdUnit] = useState<'days' | 'hours' | 'minutes'>('days')
   const [error, setError] = useState<string | null>(null)
   const [isInitializing, setIsInitializing] = useState(false)
 
@@ -22,14 +28,6 @@ export function InitializeWillPage() {
     const newHeirs = [...heirs]
     newHeirs[index] = value
     setHeirs(newHeirs)
-  }
-
-  const handleAddToken = () => setCoreTokens([...coreTokens, ''])
-  const handleRemoveToken = (index: number) => setCoreTokens(coreTokens.filter((_, i) => i !== index))
-  const handleTokenChange = (index: number, value: string) => {
-    const newTokens = [...coreTokens]
-    newTokens[index] = value
-    setCoreTokens(newTokens)
   }
 
   const onInitialize = async () => {
@@ -42,16 +40,19 @@ export function InitializeWillPage() {
       return
     }
 
-    const validTokens = coreTokens.filter(t => isAddress(t)) as `0x${string}`[]
+    const validTokenAddresses = CORE_TOKENS.map(t => t.address)
 
     try {
       setIsInitializing(true)
-      const thresholdSeconds = BigInt(thresholdDays * 86400)
+      let thresholdSeconds = 0
+      if (thresholdUnit === 'days') thresholdSeconds = Math.floor(thresholdValue * 86400)
+      else if (thresholdUnit === 'hours') thresholdSeconds = Math.floor(thresholdValue * 3600)
+      else thresholdSeconds = Math.floor(thresholdValue * 60)
       
-      console.log('Initializing with:', { validHeirs, thresholdSeconds, validTokens })
+      console.log('Initializing with:', { validHeirs, thresholdSeconds: BigInt(thresholdSeconds), validTokenAddresses })
       
       // 1. Initialize the smart account
-      await actions.initialize(validHeirs, thresholdSeconds, validTokens)
+      await actions.initialize(validHeirs, thresholdSeconds, validTokenAddresses)
       
       // 2. Register heirs in the global registry
       for (const heir of validHeirs) {
@@ -168,6 +169,7 @@ export function InitializeWillPage() {
           </section>
 
           {/* Threshold Section */}
+          {/* Threshold Section */}
           <section className="rounded-xl border border-[#E8F5BD] bg-white p-8 shadow-sm">
             <h2 className="mb-4 text-xl font-semibold text-stone-800 flex items-center gap-2">
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#E8F5BD] text-xs text-[#5B7E3C]">2</span>
@@ -176,27 +178,36 @@ export function InitializeWillPage() {
             <p className="mb-6 text-sm text-stone-500">
               How long should the protocol wait without a "pulse" from you before granting access to heirs?
             </p>
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3">
               <input
-                type="range"
-                min={1}
-                max={365}
-                value={thresholdDays}
-                onChange={(e) => setThresholdDays(Number(e.target.value))}
-                className="flex-1 accent-[#5B7E3C]"
+                type="number"
+                min={thresholdUnit === 'days' ? 0.0007 : thresholdUnit === 'hours' ? 0.0167 : 1}
+                max={thresholdUnit === 'days' ? 365 : thresholdUnit === 'hours' ? 8760 : 525600}
+                value={thresholdValue}
+                onChange={(e) => setThresholdValue(Number(e.target.value))}
+                className="w-32 rounded-lg border border-stone-200 p-3 text-lg font-bold text-[#5B7E3C] focus:border-[#5B7E3C] focus:outline-none focus:ring-1 focus:ring-[#5B7E3C]"
               />
-              <div className="w-24 text-center">
-                <span className="text-2xl font-bold text-[#5B7E3C]">{thresholdDays}</span>
-                <span className="ml-1 text-sm text-stone-500">days</span>
-              </div>
+              <select
+                value={thresholdUnit}
+                onChange={(e) => setThresholdUnit(e.target.value as 'days' | 'hours' | 'minutes')}
+                className="rounded-lg border border-stone-200 bg-white p-3 font-semibold text-stone-600 focus:border-[#5B7E3C] focus:outline-none"
+              >
+                <option value="days">Days</option>
+                <option value="hours">Hours</option>
+                <option value="minutes">Minutes</option>
+              </select>
             </div>
+            <p className="mt-2 text-xs text-stone-400">Min: 1 minute | Max: 365 days</p>
             <div className="mt-4 grid grid-cols-4 gap-2">
               {[30, 90, 180, 365].map(d => (
                 <button 
                   key={d}
-                  onClick={() => setThresholdDays(d)}
+                  onClick={() => {
+                    setThresholdValue(d)
+                    setThresholdUnit('days')
+                  }}
                   className={`rounded-lg border py-2 text-xs font-medium transition ${
-                    thresholdDays === d ? 'border-[#5B7E3C] bg-[#F9FBF2] text-[#5B7E3C]' : 'border-stone-200 text-stone-500 hover:bg-stone-50'
+                    thresholdUnit === 'days' && thresholdValue === d ? 'border-[#5B7E3C] bg-[#F9FBF2] text-[#5B7E3C]' : 'border-stone-200 text-stone-500 hover:bg-stone-50'
                   }`}
                 >
                   {d === 365 ? '1 Year' : `${d} Days`}
@@ -209,39 +220,22 @@ export function InitializeWillPage() {
           <section className="rounded-xl border border-[#E8F5BD] bg-white p-8 shadow-sm">
             <h2 className="mb-4 text-xl font-semibold text-stone-800 flex items-center gap-2">
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#E8F5BD] text-xs text-[#5B7E3C]">3</span>
-              Initial Supported Tokens
+              Protected Assets
             </h2>
             <p className="mb-6 text-sm text-stone-500">
-              List any ERC-20 tokens you want to be immediately claimable. You can add more later.
+              The following tokens will be automatically protected and claimable by your heirs.
             </p>
-            <div className="space-y-3">
-              {coreTokens.map((t, index) => (
-                <div key={index} className="flex gap-2">
-                  <input
-                    value={t}
-                    onChange={(e) => handleTokenChange(index, e.target.value)}
-                    placeholder="Token Address (0x...)"
-                    className={`flex-1 rounded-lg border p-3 font-mono text-sm ${
-                      t && !isAddress(t) ? 'border-red-300 bg-red-50' : 'border-stone-200'
-                    }`}
-                  />
-                  {coreTokens.length > 1 && (
-                    <button 
-                      onClick={() => handleRemoveToken(index)}
-                      className="rounded-lg border border-stone-200 px-3 text-stone-400 hover:bg-stone-50"
-                    >
-                      ✕
-                    </button>
-                  )}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {CORE_TOKENS.map((token) => (
+                <div key={token.symbol} className="flex items-center justify-between rounded-lg border border-stone-100 bg-stone-50 p-3">
+                  <span className="font-bold text-stone-700">{token.symbol}</span>
+                  <span className="font-mono text-[10px] text-stone-400">{token.address.slice(0, 6)}...</span>
                 </div>
               ))}
             </div>
-            <button 
-              onClick={handleAddToken}
-              className="mt-4 text-sm font-semibold text-[#5B7E3C] hover:underline"
-            >
-              + Add another token
-            </button>
+            <p className="mt-4 text-xs text-stone-400 italic">
+              Note: Native ETH is protected by default. You can add more tokens later from your dashboard.
+            </p>
           </section>
 
           {error && (

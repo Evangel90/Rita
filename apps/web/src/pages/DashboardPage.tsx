@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import { usePrivy } from '@privy-io/react-auth'
 import { AppShell } from '../components/layout/AppShell'
@@ -12,23 +12,30 @@ function formatAddress(addr: string) {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`
 }
 
-function formatCountdown(nextPingtime: bigint | undefined): string {
+function formatCountdown(nextPingtime: bigint | undefined, nowSeconds: number): string {
   if (!nextPingtime) return '—'
-  const now = BigInt(Math.floor(Date.now() / 1000))
+  const now = BigInt(nowSeconds)
   if (now >= nextPingtime) return 'Claimable now'
   const diffSecs = Number(nextPingtime - now)
   const days = Math.floor(diffSecs / 86400)
   const hours = Math.floor((diffSecs % 86400) / 3600)
-  if (days > 0) return `${days}d ${hours}h remaining`
   const mins = Math.floor((diffSecs % 3600) / 60)
-  return `${hours}h ${mins}m remaining`
+  const secs = diffSecs % 60
+
+  const parts = []
+  if (days > 0) parts.push(`${days}d`)
+  if (hours > 0 || days > 0) parts.push(`${hours}h`)
+  if (mins > 0 || hours > 0 || days > 0) parts.push(`${mins}m`)
+  parts.push(`${secs}s`)
+
+  return parts.join(' ') + ' remaining'
 }
 
 // ---------------------------------------------------------------------------
 // InheritanceCard
 // ---------------------------------------------------------------------------
 
-function InheritanceCard({ entry }: { entry: InheritanceEntry }) {
+function InheritanceCard({ entry, now }: { entry: InheritanceEntry; now: number }) {
   const { claimEth, claimToken, claimMultiple, isPending } = useClaimInheritance(entry.owner)
   const [claimError, setClaimError] = useState<string | null>(null)
   const [claimSuccess, setClaimSuccess] = useState<string | null>(null)
@@ -44,8 +51,10 @@ function InheritanceCard({ entry }: { entry: InheritanceEntry }) {
     }
   }
 
+  const isActuallyClaimable = entry.ritaState === 'CLAIMABLE' || (entry.nextPingtime !== undefined && BigInt(now) >= entry.nextPingtime)
+
   const stateColor =
-    entry.isClaimable
+    isActuallyClaimable
       ? 'bg-[#E8F5BD] text-[#3a5c1e] border-[#5B7E3C]'
       : 'bg-stone-50 text-stone-500 border-stone-200'
 
@@ -59,15 +68,15 @@ function InheritanceCard({ entry }: { entry: InheritanceEntry }) {
         </div>
         <span
           className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${
-            entry.isClaimable
+            isActuallyClaimable
               ? 'bg-[#5B7E3C] text-white'
               : 'bg-stone-200 text-stone-600'
           }`}
         >
           <span
-            className={`h-1.5 w-1.5 rounded-full ${entry.isClaimable ? 'bg-white' : 'bg-stone-400'}`}
+            className={`h-1.5 w-1.5 rounded-full ${isActuallyClaimable ? 'bg-white' : 'bg-stone-400'}`}
           />
-          {entry.ritaState ?? 'Loading…'}
+          {isActuallyClaimable ? 'CLAIMABLE' : (entry.ritaState ?? 'Loading…')}
         </span>
       </div>
 
@@ -83,12 +92,12 @@ function InheritanceCard({ entry }: { entry: InheritanceEntry }) {
         </div>
         <div className="col-span-2 rounded-lg bg-white/70 p-3 sm:col-span-1">
           <p className="text-xs text-stone-500">Claim Window</p>
-          <p className="mt-0.5 text-sm font-semibold">{formatCountdown(entry.nextPingtime)}</p>
+          <p className="mt-0.5 text-sm font-semibold">{formatCountdown(entry.nextPingtime, now)}</p>
         </div>
       </div>
 
       {/* Claim actions */}
-      {entry.isClaimable ? (
+      {isActuallyClaimable ? (
         <div className="flex flex-wrap gap-2">
           <button
             disabled={isPending}
@@ -210,6 +219,14 @@ export function DashboardPage() {
   const { isDelegated, isLoading: delegationLoading } = useIsDelegated()
   const ritaData = useRitaDashboardData()
   const [isChecking, setIsChecking] = useState(false)
+  const [now, setNow] = useState(Math.floor(Date.now() / 1000))
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(Math.floor(Date.now() / 1000))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
 
   const isLoading = inheritancesLoading || delegationLoading || ritaData.isLoading
 
@@ -326,7 +343,7 @@ export function DashboardPage() {
               this wallet.
             </p>
             {inheritances.map((entry) => (
-              <InheritanceCard key={entry.owner} entry={entry} />
+              <InheritanceCard key={entry.owner} entry={entry} now={now} />
             ))}
           </div>
         ) : (
