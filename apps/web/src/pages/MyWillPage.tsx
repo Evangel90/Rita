@@ -8,9 +8,9 @@ function formatAddress(addr: string) {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`
 }
 
-function formatCountdown(nextPingtime: bigint | undefined): string {
+function formatCountdown(nextPingtime: bigint | undefined, nowSeconds: number): string {
   if (!nextPingtime) return '—'
-  const now = BigInt(Math.floor(Date.now() / 1000))
+  const now = BigInt(nowSeconds)
   if (now >= nextPingtime) return 'Claimable now'
   const diffSecs = Number(nextPingtime - now)
   const days = Math.floor(diffSecs / 86400)
@@ -33,7 +33,7 @@ export function MyWillPage() {
   const actions = useRitaActions()
   const { isDelegated, isLoading: delegationLoading } = useIsDelegated()
   const [thresholdValue, setThresholdValue] = useState(180)
-  const [thresholdUnit, setThresholdUnit] = useState<'days' | 'hours'>('days')
+  const [thresholdUnit, setThresholdUnit] = useState<'days' | 'hours' | 'minutes'>('days')
   const [heir, setHeir] = useState('')
   const [token, setToken] = useState('')
   const [now, setNow] = useState(Math.floor(Date.now() / 1000))
@@ -52,17 +52,21 @@ export function MyWillPage() {
       if (seconds % 86400 === 0) {
         setThresholdValue(seconds / 86400)
         setThresholdUnit('days')
-      } else {
+      } else if (seconds % 3600 === 0) {
         setThresholdValue(seconds / 3600)
         setThresholdUnit('hours')
+      } else {
+        setThresholdValue(seconds / 60)
+        setThresholdUnit('minutes')
       }
     }
   }, [data.threshold])
 
   const onUpdateThreshold = async () => {
-    const seconds = thresholdUnit === 'days' 
-      ? Math.floor(thresholdValue * 86400) 
-      : Math.floor(thresholdValue * 3600)
+    let seconds = 0
+    if (thresholdUnit === 'days') seconds = Math.floor(thresholdValue * 86400)
+    else if (thresholdUnit === 'hours') seconds = Math.floor(thresholdValue * 3600)
+    else seconds = Math.floor(thresholdValue * 60)
     
     console.log('[MyWill] Updating threshold:', { thresholdValue, thresholdUnit, seconds })
     await actions.updateThreshold(BigInt(seconds))
@@ -140,7 +144,7 @@ export function MyWillPage() {
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-stone-400">Next Pulse Due</p>
-                <p className="mt-1 font-semibold text-stone-700">{formatCountdown(data.nextPing)}</p>
+                <p className="mt-1 font-semibold text-stone-700">{formatCountdown(data.nextPing, now)}</p>
               </div>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-stone-400">Inactivity Threshold</p>
@@ -189,23 +193,24 @@ export function MyWillPage() {
             <div className="flex flex-wrap items-center gap-3">
               <input
                 type="number"
-                min={thresholdUnit === 'days' ? 0.0417 : 1}
-                max={thresholdUnit === 'days' ? 365 : 8760}
+                min={thresholdUnit === 'days' ? 0.0007 : thresholdUnit === 'hours' ? 0.0167 : 1}
+                max={thresholdUnit === 'days' ? 365 : thresholdUnit === 'hours' ? 8760 : 525600}
                 value={thresholdValue}
                 onChange={(e) => setThresholdValue(Number(e.target.value))}
                 className="w-32 rounded-lg border border-stone-200 p-3 text-lg font-bold text-[#5B7E3C] focus:border-[#5B7E3C] focus:outline-none focus:ring-1 focus:ring-[#5B7E3C]"
               />
               <select
                 value={thresholdUnit}
-                onChange={(e) => setThresholdUnit(e.target.value as 'days' | 'hours')}
+                onChange={(e) => setThresholdUnit(e.target.value as 'days' | 'hours' | 'minutes')}
                 className="rounded-lg border border-stone-200 bg-white p-3 font-semibold text-stone-600 focus:border-[#5B7E3C] focus:outline-none"
               >
                 <option value="days">Days</option>
                 <option value="hours">Hours</option>
+                <option value="minutes">Minutes</option>
               </select>
             </div>
             <p className="mt-2 text-xs text-stone-400">
-              Min: 1 hour | Max: 365 days ({thresholdUnit === 'days' ? '365' : '8760'} {thresholdUnit})
+              Min: 1 minute | Max: 365 days
             </p>
             <button 
               className="mt-6 w-full rounded-xl bg-[#5B7E3C] py-3 font-bold text-white transition-all hover:opacity-90 sm:w-auto sm:px-8 disabled:opacity-60" 

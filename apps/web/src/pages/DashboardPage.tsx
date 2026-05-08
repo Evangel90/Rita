@@ -12,9 +12,9 @@ function formatAddress(addr: string) {
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`
 }
 
-function formatCountdown(nextPingtime: bigint | undefined): string {
+function formatCountdown(nextPingtime: bigint | undefined, nowSeconds: number): string {
   if (!nextPingtime) return '—'
-  const now = BigInt(Math.floor(Date.now() / 1000))
+  const now = BigInt(nowSeconds)
   if (now >= nextPingtime) return 'Claimable now'
   const diffSecs = Number(nextPingtime - now)
   const days = Math.floor(diffSecs / 86400)
@@ -92,7 +92,7 @@ function InheritanceCard({ entry, now }: { entry: InheritanceEntry; now: number 
         </div>
         <div className="col-span-2 rounded-lg bg-white/70 p-3 sm:col-span-1">
           <p className="text-xs text-stone-500">Claim Window</p>
-          <p className="mt-0.5 text-sm font-semibold">{formatCountdown(entry.nextPingtime)}</p>
+          <p className="mt-0.5 text-sm font-semibold">{formatCountdown(entry.nextPingtime, now)}</p>
         </div>
       </div>
 

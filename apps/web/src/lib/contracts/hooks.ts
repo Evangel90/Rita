@@ -195,32 +195,85 @@ export function useInheritances() {
 // ---------------------------------------------------------------------------
 
 export function useClaimInheritance(owner: `0x${string}`) {
+  const { address, connector } = useRitaAccount()
   const { writeContractAsync, isPending } = useWriteContract()
+  const { wallets } = useWallets()
+  const publicClient = usePublicClient({ chainId: CHAIN_ID })
+
+  const callContract = async ({
+    abi,
+    address: contractAddress,
+    functionName,
+    args = [],
+  }: {
+    abi: any
+    address: `0x${string}`
+    functionName: string
+    args?: any[]
+  }) => {
+    let hash: `0x${string}`
+
+    if (connector) {
+      hash = await writeContractAsync({
+        abi,
+        address: contractAddress,
+        functionName,
+        args,
+        chainId: CHAIN_ID,
+      } as any)
+    } else {
+      const embeddedWallet = wallets.find((w) => w.walletClientType === 'privy')
+      if (embeddedWallet) {
+        console.log(`[ClaimInheritance] Using Privy embedded wallet for ${functionName}...`)
+        const provider = await embeddedWallet.getEthereumProvider()
+        const data = encodeFunctionData({ abi, functionName, args })
+
+        hash = (await provider.request({
+          method: 'eth_sendTransaction',
+          params: [
+            {
+              from: address,
+              to: contractAddress,
+              data,
+              value: '0x0',
+              chainId: `0x${CHAIN_ID.toString(16)}`,
+            },
+          ],
+        })) as `0x${string}`
+      } else {
+        throw new Error('No wallet connector found. Please connect your wallet.')
+      }
+    }
+
+    if (publicClient) {
+      console.log(`[ClaimInheritance] Waiting for confirmation on chain ${CHAIN_ID}: ${hash}...`)
+      return await publicClient.waitForTransactionReceipt({ hash })
+    }
+
+    return { hash }
+  }
 
   return {
     isPending,
     claimEth: () =>
-      writeContractAsync({
+      callContract({
         abi: ritaDelegateAbi,
         address: owner,
         functionName: 'claimETH',
-        chainId: CHAIN_ID,
       }),
     claimToken: (token: `0x${string}`) =>
-      writeContractAsync({
+      callContract({
         abi: ritaDelegateAbi,
         address: owner,
         functionName: 'claimERC20',
         args: [token],
-        chainId: CHAIN_ID,
       }),
     claimMultiple: (tokens: `0x${string}`[]) =>
-      writeContractAsync({
+      callContract({
         abi: ritaDelegateAbi,
         address: owner,
         functionName: 'claimMultipleTokens',
         args: [tokens],
-        chainId: CHAIN_ID,
       }),
   }
 }

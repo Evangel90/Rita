@@ -27,7 +27,7 @@ contract RitaDelegate {
     bytes32 private constant RITA_STORAGE_SLOT =
         0x5831c64c08ad1d0d413dfef5157dcf078503c67ed71f9d9277ac170dbf44bd00;
     uint256 private constant MAXIMUM_THRESHOLD = 365 days;
-    uint256 private constant MINIMUM_THRESHOLD = 1 hours;
+    uint256 private constant MINIMUM_THRESHOLD = 1 minutes;
 
     struct RitaStorage {
         uint256 nextPingtime;
