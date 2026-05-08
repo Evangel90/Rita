@@ -15,9 +15,16 @@ function formatCountdown(nextPingtime: bigint | undefined): string {
   const diffSecs = Number(nextPingtime - now)
   const days = Math.floor(diffSecs / 86400)
   const hours = Math.floor((diffSecs % 86400) / 3600)
-  if (days > 0) return `${days}d ${hours}h remaining`
   const mins = Math.floor((diffSecs % 3600) / 60)
-  return `${hours}h ${mins}m remaining`
+  const secs = diffSecs % 60
+
+  const parts = []
+  if (days > 0) parts.push(`${days}d`)
+  if (hours > 0 || days > 0) parts.push(`${hours}h`)
+  if (mins > 0 || hours > 0 || days > 0) parts.push(`${mins}m`)
+  parts.push(`${secs}s`)
+
+  return parts.join(' ') + ' remaining'
 }
 
 export function MyWillPage() {
@@ -25,16 +32,41 @@ export function MyWillPage() {
   const data = useRitaDashboardData()
   const actions = useRitaActions()
   const { isDelegated, isLoading: delegationLoading } = useIsDelegated()
-  const [thresholdDays, setThresholdDays] = useState(180)
+  const [thresholdValue, setThresholdValue] = useState(180)
+  const [thresholdUnit, setThresholdUnit] = useState<'days' | 'hours'>('days')
   const [heir, setHeir] = useState('')
   const [token, setToken] = useState('')
+  const [now, setNow] = useState(Math.floor(Date.now() / 1000))
 
-  // Sync slider with on-chain threshold once loaded
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(Math.floor(Date.now() / 1000))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
+
+  // Sync with on-chain threshold once loaded
   useEffect(() => {
     if (data.threshold) {
-      setThresholdDays(Number(data.threshold / 86400n))
+      const seconds = Number(data.threshold)
+      if (seconds % 86400 === 0) {
+        setThresholdValue(seconds / 86400)
+        setThresholdUnit('days')
+      } else {
+        setThresholdValue(seconds / 3600)
+        setThresholdUnit('hours')
+      }
     }
   }, [data.threshold])
+
+  const onUpdateThreshold = async () => {
+    const seconds = thresholdUnit === 'days' 
+      ? Math.floor(thresholdValue * 86400) 
+      : Math.floor(thresholdValue * 3600)
+    
+    console.log('[MyWill] Updating threshold:', { thresholdValue, thresholdUnit, seconds })
+    await actions.updateThreshold(BigInt(seconds))
+  }
 
   // Redirect to initialization if delegated but not initialized
   if (isDelegated && data.isInitialized === false) {
@@ -154,18 +186,30 @@ export function MyWillPage() {
           <div className="rounded-xl border border-[#E8F5BD] bg-white p-8">
             <h3 className="mb-2 text-xl font-semibold text-stone-800">Adjust Pulse Interval</h3>
             <p className="mb-6 text-sm text-stone-500">How long should we wait before your assets become claimable by beneficiaries?</p>
-            <input
-              type="range"
-              min={7}
-              max={365}
-              value={thresholdDays}
-              onChange={(e) => setThresholdDays(Number(e.target.value))}
-              className="w-full accent-[#5B7E3C]"
-            />
-            <p className="mt-2 text-center text-lg font-bold text-[#5B7E3C]">{thresholdDays} days</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <input
+                type="number"
+                min={thresholdUnit === 'days' ? 0.0417 : 1}
+                max={thresholdUnit === 'days' ? 365 : 8760}
+                value={thresholdValue}
+                onChange={(e) => setThresholdValue(Number(e.target.value))}
+                className="w-32 rounded-lg border border-stone-200 p-3 text-lg font-bold text-[#5B7E3C] focus:border-[#5B7E3C] focus:outline-none focus:ring-1 focus:ring-[#5B7E3C]"
+              />
+              <select
+                value={thresholdUnit}
+                onChange={(e) => setThresholdUnit(e.target.value as 'days' | 'hours')}
+                className="rounded-lg border border-stone-200 bg-white p-3 font-semibold text-stone-600 focus:border-[#5B7E3C] focus:outline-none"
+              >
+                <option value="days">Days</option>
+                <option value="hours">Hours</option>
+              </select>
+            </div>
+            <p className="mt-2 text-xs text-stone-400">
+              Min: 1 hour | Max: 365 days ({thresholdUnit === 'days' ? '365' : '8760'} {thresholdUnit})
+            </p>
             <button 
-              className="mt-6 w-full rounded-xl bg-[#5B7E3C] py-3 font-bold text-white transition-all hover:opacity-90 sm:w-auto sm:px-8" 
-              onClick={() => actions.updateThreshold(BigInt(thresholdDays * 86400))}
+              className="mt-6 w-full rounded-xl bg-[#5B7E3C] py-3 font-bold text-white transition-all hover:opacity-90 sm:w-auto sm:px-8 disabled:opacity-60" 
+              onClick={onUpdateThreshold}
             >
               Update Threshold
             </button>

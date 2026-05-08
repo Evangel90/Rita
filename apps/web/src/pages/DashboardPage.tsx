@@ -19,16 +19,23 @@ function formatCountdown(nextPingtime: bigint | undefined): string {
   const diffSecs = Number(nextPingtime - now)
   const days = Math.floor(diffSecs / 86400)
   const hours = Math.floor((diffSecs % 86400) / 3600)
-  if (days > 0) return `${days}d ${hours}h remaining`
   const mins = Math.floor((diffSecs % 3600) / 60)
-  return `${hours}h ${mins}m remaining`
+  const secs = diffSecs % 60
+
+  const parts = []
+  if (days > 0) parts.push(`${days}d`)
+  if (hours > 0 || days > 0) parts.push(`${hours}h`)
+  if (mins > 0 || hours > 0 || days > 0) parts.push(`${mins}m`)
+  parts.push(`${secs}s`)
+
+  return parts.join(' ') + ' remaining'
 }
 
 // ---------------------------------------------------------------------------
 // InheritanceCard
 // ---------------------------------------------------------------------------
 
-function InheritanceCard({ entry }: { entry: InheritanceEntry }) {
+function InheritanceCard({ entry, now }: { entry: InheritanceEntry; now: number }) {
   const { claimEth, claimToken, claimMultiple, isPending } = useClaimInheritance(entry.owner)
   const [claimError, setClaimError] = useState<string | null>(null)
   const [claimSuccess, setClaimSuccess] = useState<string | null>(null)
@@ -44,8 +51,10 @@ function InheritanceCard({ entry }: { entry: InheritanceEntry }) {
     }
   }
 
+  const isActuallyClaimable = entry.ritaState === 'CLAIMABLE' || (entry.nextPingtime !== undefined && BigInt(now) >= entry.nextPingtime)
+
   const stateColor =
-    entry.isClaimable
+    isActuallyClaimable
       ? 'bg-[#E8F5BD] text-[#3a5c1e] border-[#5B7E3C]'
       : 'bg-stone-50 text-stone-500 border-stone-200'
 
@@ -59,15 +68,15 @@ function InheritanceCard({ entry }: { entry: InheritanceEntry }) {
         </div>
         <span
           className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${
-            entry.isClaimable
+            isActuallyClaimable
               ? 'bg-[#5B7E3C] text-white'
               : 'bg-stone-200 text-stone-600'
           }`}
         >
           <span
-            className={`h-1.5 w-1.5 rounded-full ${entry.isClaimable ? 'bg-white' : 'bg-stone-400'}`}
+            className={`h-1.5 w-1.5 rounded-full ${isActuallyClaimable ? 'bg-white' : 'bg-stone-400'}`}
           />
-          {entry.ritaState ?? 'Loading…'}
+          {isActuallyClaimable ? 'CLAIMABLE' : (entry.ritaState ?? 'Loading…')}
         </span>
       </div>
 
@@ -88,7 +97,7 @@ function InheritanceCard({ entry }: { entry: InheritanceEntry }) {
       </div>
 
       {/* Claim actions */}
-      {entry.isClaimable ? (
+      {isActuallyClaimable ? (
         <div className="flex flex-wrap gap-2">
           <button
             disabled={isPending}
@@ -210,6 +219,14 @@ export function DashboardPage() {
   const { isDelegated, isLoading: delegationLoading } = useIsDelegated()
   const ritaData = useRitaDashboardData()
   const [isChecking, setIsChecking] = useState(false)
+  const [now, setNow] = useState(Math.floor(Date.now() / 1000))
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(Math.floor(Date.now() / 1000))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
 
   const isLoading = inheritancesLoading || delegationLoading || ritaData.isLoading
 
@@ -252,6 +269,90 @@ export function DashboardPage() {
       setIsChecking(false)
     }
   }
+
+  return (
+    <AppShell>
+      <div className="mx-auto max-w-[900px] space-y-10 p-6">
+        {/* Benefactor CTA Section */}
+        <section className="rounded-2xl border border-[#E8F5BD] bg-white p-8 shadow-sm">
+          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div className="max-w-md">
+              <h2 className="text-2xl font-bold text-stone-800">Secure Your Legacy</h2>
+              <p className="mt-2 text-stone-600">
+                Set up your own modular inheritance plan. Delegate your account authority to the 
+                Rita Protocol via EIP-7702.
+              </p>
+            </div>
+            <button
+              onClick={handleCreateWill}
+              disabled={isChecking}
+              className="shrink-0 rounded-xl bg-[#5B7E3C] px-8 py-4 font-bold text-white shadow-lg shadow-[#5B7E3C]/20 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {!authenticated ? (
+                'Connect to Create Will'
+              ) : isChecking ? (
+                <span className="flex items-center gap-2">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Verifying...
+                </span>
+              ) : (
+                isDelegated && ritaData.isInitialized ? 'Manage My Will' : 'Create My Will'
+              )}
+            </button>
+          </div>
+        </section>
+
+        {/* Page header */}
+        <div className="border-t border-stone-100 pt-10">
+          <h1 className="text-2xl font-bold text-stone-800">My Inheritances</h1>
+          {isConnected && address && (
+            <p className="mt-1 font-mono text-sm text-stone-500">{formatAddress(address)}</p>
+          )}
+        </div>
+
+        {/* Content */}
+        {!isConnected ? (
+          <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-stone-200 bg-white py-20 text-center">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-stone-100">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-8 w-8 text-stone-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={1.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+                />
+              </svg>
+            </div>
+            <h3 className="mb-1 text-lg font-semibold text-stone-700">Connect your wallet</h3>
+            <p className="max-w-sm text-sm text-stone-500">
+              Connect your wallet to check if you have any inheritances waiting for you.
+            </p>
+          </div>
+        ) : isLoading ? (
+          <LoadingSkeleton />
+        ) : hasInheritance ? (
+          <div className="space-y-4">
+            <p className="text-sm text-stone-500">
+              {inheritances.length} inheritance{inheritances.length !== 1 ? 's' : ''} found for
+              this wallet.
+            </p>
+            {inheritances.map((entry) => (
+              <InheritanceCard key={entry.owner} entry={entry} now={now} />
+            ))}
+          </div>
+        ) : (
+          <NoInheritanceFallback />
+        )}
+      </div>
+    </AppShell>
+  )
+}
 
   return (
     <AppShell>

@@ -11,7 +11,8 @@ export function InitializeWillPage() {
   const { isDelegated, isLoading: delegationLoading } = useIsDelegated()
 
   const [heirs, setHeirs] = useState<string[]>([''])
-  const [thresholdDays, setThresholdDays] = useState(180)
+  const [thresholdValue, setThresholdValue] = useState(180)
+  const [thresholdUnit, setThresholdUnit] = useState<'days' | 'hours'>('days')
   const [coreTokens, setCoreTokens] = useState<string[]>([''])
   const [error, setError] = useState<string | null>(null)
   const [isInitializing, setIsInitializing] = useState(false)
@@ -46,7 +47,11 @@ export function InitializeWillPage() {
 
     try {
       setIsInitializing(true)
-      const thresholdSeconds = BigInt(thresholdDays * 86400)
+      const thresholdSeconds = BigInt(
+        thresholdUnit === 'days' 
+          ? Math.floor(thresholdValue * 86400) 
+          : Math.floor(thresholdValue * 3600)
+      )
       
       console.log('Initializing with:', { validHeirs, thresholdSeconds, validTokens })
       
@@ -168,6 +173,7 @@ export function InitializeWillPage() {
           </section>
 
           {/* Threshold Section */}
+          {/* Threshold Section */}
           <section className="rounded-xl border border-[#E8F5BD] bg-white p-8 shadow-sm">
             <h2 className="mb-4 text-xl font-semibold text-stone-800 flex items-center gap-2">
               <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#E8F5BD] text-xs text-[#5B7E3C]">2</span>
@@ -176,27 +182,35 @@ export function InitializeWillPage() {
             <p className="mb-6 text-sm text-stone-500">
               How long should the protocol wait without a "pulse" from you before granting access to heirs?
             </p>
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-3">
               <input
-                type="range"
-                min={1}
-                max={365}
-                value={thresholdDays}
-                onChange={(e) => setThresholdDays(Number(e.target.value))}
-                className="flex-1 accent-[#5B7E3C]"
+                type="number"
+                min={thresholdUnit === 'days' ? 0.0417 : 1}
+                max={thresholdUnit === 'days' ? 365 : 8760}
+                value={thresholdValue}
+                onChange={(e) => setThresholdValue(Number(e.target.value))}
+                className="w-32 rounded-lg border border-stone-200 p-3 text-lg font-bold text-[#5B7E3C] focus:border-[#5B7E3C] focus:outline-none focus:ring-1 focus:ring-[#5B7E3C]"
               />
-              <div className="w-24 text-center">
-                <span className="text-2xl font-bold text-[#5B7E3C]">{thresholdDays}</span>
-                <span className="ml-1 text-sm text-stone-500">days</span>
-              </div>
+              <select
+                value={thresholdUnit}
+                onChange={(e) => setThresholdUnit(e.target.value as 'days' | 'hours')}
+                className="rounded-lg border border-stone-200 bg-white p-3 font-semibold text-stone-600 focus:border-[#5B7E3C] focus:outline-none"
+              >
+                <option value="days">Days</option>
+                <option value="hours">Hours</option>
+              </select>
             </div>
+            <p className="mt-2 text-xs text-stone-400">Min: 1 hour | Max: 365 days ({thresholdUnit === 'days' ? '365' : '8760'} {thresholdUnit})</p>
             <div className="mt-4 grid grid-cols-4 gap-2">
               {[30, 90, 180, 365].map(d => (
                 <button 
                   key={d}
-                  onClick={() => setThresholdDays(d)}
+                  onClick={() => {
+                    setThresholdValue(d)
+                    setThresholdUnit('days')
+                  }}
                   className={`rounded-lg border py-2 text-xs font-medium transition ${
-                    thresholdDays === d ? 'border-[#5B7E3C] bg-[#F9FBF2] text-[#5B7E3C]' : 'border-stone-200 text-stone-500 hover:bg-stone-50'
+                    thresholdUnit === 'days' && thresholdValue === d ? 'border-[#5B7E3C] bg-[#F9FBF2] text-[#5B7E3C]' : 'border-stone-200 text-stone-500 hover:bg-stone-50'
                   }`}
                 >
                   {d === 365 ? '1 Year' : `${d} Days`}
